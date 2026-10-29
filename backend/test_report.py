@@ -1,0 +1,32 @@
+import tempfile
+from pathlib import Path
+import unittest
+from unittest.mock import AsyncMock, patch
+from fastapi.testclient import TestClient
+import main
+
+
+class ReportTest(unittest.TestCase):
+    def test_preview_consent_binding_and_generation(self):
+        original = main.DB_PATH
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                main.DB_PATH = Path(folder) / 'test.sqlite3'
+                client = TestClient(main.app)
+                with patch('ai_chat.generate', new_callable=AsyncMock) as generate:
+                    generate.return_value = {'reply': '今日健康报告', 'mode': 'ai'}
+                    preview = client.get('/api/report/preview').json()
+                    generate.assert_not_called()
+                    self.assertIsNone(preview['data']['当天体重（kg）'])
+                    self.assertEqual(client.post('/api/report', json={**preview, 'consent': False}).status_code, 422)
+                    changed = {**preview, 'data': {**preview['data'], '步数（步，单一来源）': 99999}}
+                    self.assertEqual(client.post('/api/report', json={**changed, 'consent': True}).status_code, 409)
+                    generate.assert_not_called()
+                    result = client.post('/api/report', json={**preview, 'consent': True})
+                    self.assertEqual(result.status_code, 200)
+                    generate.assert_awaited_once()
+                    self.assertEqual(generate.call_args.args[1], [])
+                    self.assertTrue(generate.call_args.kwargs['report'])
+                    self.assertNotIn('records', generate.call_args.args[0])
+        finally:
+            main.DB_PATH = original
