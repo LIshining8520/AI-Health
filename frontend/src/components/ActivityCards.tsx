@@ -8,13 +8,13 @@ function Rings({ values, colors, label }: { values: (number | null)[]; colors: s
       const circumference = 2 * Math.PI * radius;
       return <g key={i} transform="rotate(-90 50 50)">
         <circle cx="50" cy="50" r={radius} fill="none" stroke={colors[i]} strokeWidth="10" opacity=".12" />
-        {value != null && value > 0 && <circle cx="50" cy="50" r={radius} fill="none" stroke={colors[i]} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${Math.min(1, value) * circumference} ${circumference}`} />}
+        {value != null && value > 0 && <circle cx="50" cy="50" r={radius} fill="none" stroke={colors[i]} strokeWidth="10" strokeLinecap="round" strokeDasharray={`${Math.min(1, value) * circumference} ${circumference}`} strokeDashoffset={0}><title>{["活动", "锻炼", "站立"][i]}：{Math.round(value * 100)}%</title></circle>}
       </g>;
     })}
   </svg>;
 }
 const workoutNames: Record<string, string> = { Walking: "步行", Running: "跑步", Cycling: "骑行", Swimming: "游泳", Yoga: "瑜伽", Hiking: "徒步", TraditionalStrengthTraining: "力量训练", FunctionalStrengthTraining: "功能性力量训练", HighIntensityIntervalTraining: "高强度间歇训练", Dance: "舞蹈", Elliptical: "椭圆机", Rowing: "划船", Other: "其他训练" };
-const progress = (value: number | null | undefined, goal: number | null | undefined) => value != null && goal != null && goal > 0 ? value / goal : null;
+const progress = (value: number | null | undefined, goal: number | null | undefined) => value != null && goal != null && goal > 0 && Number.isFinite(value) && Number.isFinite(goal) ? Math.max(0, value / goal) : null;
 const amount = (value: number | null | undefined) => value == null ? '—' : Math.round(value).toLocaleString('zh-CN');
 
 export default function ActivityCards({ dashboard }: { dashboard: Dashboard | null }) {
@@ -39,6 +39,12 @@ export default function ActivityCards({ dashboard }: { dashboard: Dashboard | nu
         <div className="activity-stat"><span><ArrowUp size={14} />站立</span><b>{amount(fitness?.standHours)}<small>小时</small></b></div>
         <Rings values={[progress(fitness?.activeKcal, fitness?.activeGoal), progress(fitness?.exerciseMinutes, fitness?.exerciseGoal), progress(fitness?.standHours, fitness?.standGoal)]} colors={['#ff768f', '#ffac74', '#80c2ff']} label="活动、锻炼、站立目标完成进度，圆环最多显示一圈" />
       </div>
+      <div className="fitness-goals" aria-label="健身圆环目标">
+        <span style={{ color: '#df566f' }}>外圈·活动目标 {fitness?.activeGoal != null && fitness.activeGoal > 0 ? `${amount(fitness.activeGoal)} 千卡` : '未读取到'}</span>
+        <span style={{ color: '#b76b32' }}>中圈·锻炼目标 {fitness?.exerciseGoal != null && fitness.exerciseGoal > 0 ? `${amount(fitness.exerciseGoal)} 分钟` : '未读取到'}</span>
+        <span style={{ color: '#4187b8' }}>内圈·站立目标 {fitness?.standGoal != null && fitness.standGoal > 0 ? `${amount(fitness.standGoal)} 小时` : '未读取到'}</span>
+      </div>
+      {fitness?.goalDate && fitness.goalDate !== fitness.date && <p className="activity-note">目标沿用 {fitness.goalDate} 的健身记录</p>}
       <p className="activity-note">{fitness ? `${fitness.date} · Apple 健康 · ${fitness.source || "当日活动汇总"}` : '暂无健身记录'} · 有目标记录时显示圆环进度</p>
     </section>
     <section className="card activity-summary">

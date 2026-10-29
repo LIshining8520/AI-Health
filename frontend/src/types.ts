@@ -10,7 +10,7 @@ export type Dashboard = {
   workouts?: Workout[];
   noise?: { date: string; value: number; at: string } | null;
   sleep?: { date: string; hours: number } | null;
-  fitness?: { workoutOnly?: boolean; source?: string; date: string; activeKcal: number | null; activeGoal: number | null; exerciseMinutes: number | null; exerciseGoal: number | null; standHours: number | null; standGoal: number | null } | null;
+  fitness?: { goalDate?: string; workoutOnly?: boolean; source?: string; date: string; activeKcal: number | null; activeGoal: number | null; exerciseMinutes: number | null; exerciseGoal: number | null; standHours: number | null; standGoal: number | null } | null;
   heartRate?: { date: string; value: number } | null;
   weight: number | null;
   date?: string;

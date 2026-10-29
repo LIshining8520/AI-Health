@@ -274,6 +274,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
         ]
         var failures: [String] = []
         var activityMetrics: [String: Any] = [:]
+        var activityGoals: [String: Any] = [:]
 
         group.enter()
         let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)!
@@ -376,11 +377,30 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
         // HealthKit raises an Objective-C exception if the Gregorian calendar is absent.
         components.calendar = calendar
         components.timeZone = calendar.timeZone
-        let activityQuery = HKActivitySummaryQuery(predicate: HKQuery.predicateForActivitySummary(with: components)) { _, summaries, error in
+        var goalStart = calendar.dateComponents([.era, .year, .month, .day], from: calendar.date(byAdding: .year, value: -1, to: today)!)
+        goalStart.calendar = calendar
+        goalStart.timeZone = calendar.timeZone
+        let activityPredicate = HKQuery.predicate(forActivitySummariesBetweenStart: goalStart, end: components)
+        let activityQuery = HKActivitySummaryQuery(predicate: activityPredicate) { _, summaries, error in
             results.async {
                 if let error = error, !self.isReadDenied(error) { failures.append("健身活动：\(error.localizedDescription)") }
-                if let activity = summaries?.first {
-                    summary["fitness"] = [
+                let ordered = (summaries ?? []).sorted {
+                    (calendar.date(from: $0.dateComponents(for: calendar)) ?? .distantPast) <
+                    (calendar.date(from: $1.dateComponents(for: calendar)) ?? .distantPast)
+                }
+                if let latest = ordered.last {
+                    activityGoals["activeGoal"] = latest.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie())
+                    if #available(iOS 16.0, *) {
+                        activityGoals["exerciseGoal"] = latest.exerciseTimeGoal.map { $0.doubleValue(for: .minute()) } ?? NSNull()
+                        activityGoals["standGoal"] = latest.standHoursGoal.map { $0.doubleValue(for: .count()) } ?? NSNull()
+                    } else {
+                        activityGoals["exerciseGoal"] = latest.appleExerciseTimeGoal.doubleValue(for: .minute())
+                        activityGoals["standGoal"] = latest.appleStandHoursGoal.doubleValue(for: .count())
+                    }
+                    activityGoals["goalDate"] = formatter.string(from: calendar.date(from: latest.dateComponents(for: calendar))!)
+                }
+                if let activity = ordered.last, calendar.isDate(calendar.date(from: activity.dateComponents(for: calendar))!, inSameDayAs: today) {
+                    var dailyFitness: [String: Any] = [
                         "activeKcal": activity.activeEnergyBurned.doubleValue(for: .kilocalorie()),
                         "activeGoal": activity.activeEnergyBurnedGoal.doubleValue(for: .kilocalorie()),
                         "exerciseMinutes": activity.appleExerciseTime.doubleValue(for: .minute()),
@@ -388,6 +408,8 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
                         "standHours": activity.appleStandHours.doubleValue(for: .count()),
                         "standGoal": activity.appleStandHoursGoal.doubleValue(for: .count())
                     ]
+                    dailyFitness.merge(activityGoals) { _, new in new }
+                    summary["fitness"] = dailyFitness
                 }
                 group.leave()
             }
@@ -470,6 +492,10 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 summary["fitness"] = ["activeKcal": energy.isEmpty ? NSNull() : energy.reduce(0, +) as Any,
                     "exerciseMinutes": minutes, "standHours": NSNull(), "activeGoal": NSNull(),
                     "exerciseGoal": NSNull(), "standGoal": NSNull(), "source": "体能训练汇总（非全天活动，消耗仅统计有记录项）", "workoutOnly": true]
+            }
+            if var fitness = summary["fitness"] as? [String: Any], fitness["workoutOnly"] as? Bool != true {
+                fitness.merge(activityGoals) { _, new in new }
+                summary["fitness"] = fitness
             }
             summary["warnings"] = failures
             let hasData = ["steps", "weightKg", "sleepHours", "heartRate", "noise", "waterMl", "fitness"].contains { !(summary[$0] is NSNull) }
