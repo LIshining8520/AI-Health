@@ -24,6 +24,8 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>当你主动添加饮水记录时，知康会将饮水量写入 Apple 健康，以便统一保存和统计。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>知康申请读取本机支持的常规健康数据，包括身体测量、生命体征、活动与运动、睡眠、营养、听力、症状、生殖健康及基本健康特征，用于个人健康管理。你可逐项选择是否允许。当前仅查询页面已支持的指标，数据仅在设备内使用，不自动上传服务器或 AI。</string>
 	<key>UIApplicationSceneManifest</key>

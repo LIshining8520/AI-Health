@@ -157,11 +157,11 @@ export default function HealthPage({
           </div>
           <button
             className="subtle-button"
-            disabled={saving || !canRecord}
+            disabled={saving || date !== today || healthBusy}
             onClick={onAddWater}
           >
             <Plus size={16} />
-            记录 250 mL
+            {saving ? "保存中…" : "记录 250 mL"}
           </button>
         </section>
         <section className="card metric-card">
@@ -271,7 +271,7 @@ export default function HealthPage({
       </section>
 
       {!native && <details style={{ marginTop: 20 }}><summary>数据来源与连接</summary><ImportedHealthCard />{!native && <AppleHealthCard />}</details>}
-      {!canRecord && <p className="chart-caption">历史日期仅供查看，新增记录请切换到今天。</p>}
+      {date !== today && <p className="chart-caption">历史日期仅供查看，新增记录请切换到今天。</p>}
     </>
   );
 }

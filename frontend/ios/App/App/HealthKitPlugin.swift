@@ -8,6 +8,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestReadAccess", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "addWater", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readSummary", returnType: CAPPluginReturnPromise)
     ]
     private let store = HKHealthStore()
@@ -19,6 +20,31 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func isAvailable(_ call: CAPPluginCall) {
         call.resolve(["available": HKHealthStore.isHealthDataAvailable()])
+    }
+
+    @objc func addWater(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("此设备不支持 Apple 健康", "UNAVAILABLE")
+            return
+        }
+        guard let milliliters = call.getDouble("milliliters"), milliliters.isFinite,
+              milliliters > 0, milliliters <= 5000,
+              let type = HKObjectType.quantityType(forIdentifier: .dietaryWater) else {
+            call.reject("饮水量须在 0–5000 mL 之间", "INVALID_AMOUNT")
+            return
+        }
+        store.requestAuthorization(toShare: [type], read: [type]) { completed, error in
+            guard completed, self.store.authorizationStatus(for: type) == .sharingAuthorized else {
+                call.reject("未允许写入饮水，请在「健康」中开启知康的饮水写入权限。", "WRITE_DENIED", error)
+                return
+            }
+            let now = Date()
+            let sample = HKQuantitySample(type: type, quantity: HKQuantity(unit: .literUnit(with: .milli), doubleValue: milliliters), start: now, end: now)
+            self.store.save(sample) { saved, error in
+                if saved { call.resolve(["saved": true]) }
+                else { call.reject("饮水保存失败：" + (error?.localizedDescription ?? "请重试"), "SAVE_FAILED", error) }
+            }
+        }
     }
 
     @objc func requestReadAccess(_ call: CAPPluginCall) {

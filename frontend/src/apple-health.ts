@@ -21,6 +21,7 @@ export interface AppleHealthSummary {
   syncedAt: string;
 }
 interface HealthKitBridge {
+  addWater(options: { milliliters: number }): Promise<{ saved: boolean }>;
   isAvailable(): Promise<{ available: boolean }>;
   requestReadAccess(): Promise<{ requestCompleted: boolean }>;
   readSummary(options?: { date?: string }): Promise<AppleHealthSummary>;
@@ -43,4 +44,11 @@ export async function readAppleHealth(
     if (!result.requestCompleted) throw new Error("授权请求未完成，请重试。");
   }
   return HealthKit.readSummary({ date });
+}
+
+export async function addAppleHealthWater(milliliters: number): Promise<void> {
+  if (!isNativeIPhone()) throw new Error("请在 iPhone App 中保存到 Apple 健康。");
+  if (!Number.isFinite(milliliters) || milliliters <= 0 || milliliters > 5000) throw new Error("饮水量须在 0–5000 mL 之间");
+  const result = await HealthKit.addWater({ milliliters });
+  if (!result.saved) throw new Error("饮水记录未保存，请重试。");
 }

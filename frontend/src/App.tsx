@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type { AppleHealthSummary } from "./apple-health";
-import { isNativeIPhone, readAppleHealth } from "./apple-health";
+import { addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
 import IconBubble from "./components/IconBubble";
 import ChatPage, { ChatComposer } from "./pages/ChatPage";
 import HealthPage from "./pages/HealthPage";
@@ -204,7 +204,20 @@ export default function App() {
     if (saving) return;
     setSaving(true);
     try {
-      const data = await request<Dashboard>("/records", {
+      if (isNativeIPhone() && kind === "water") {
+        await addAppleHealthWater(amount);
+        try {
+          const summary = await readAppleHealth(false, healthDate);
+          setNativeSummary(summary);
+          setHealthError("");
+          setToast(`已将 ${amount} mL 饮水保存到 Apple 健康`);
+        } catch (error) {
+          setHealthError(error instanceof Error ? error.message : "健康数据刷新失败");
+          setToast("饮水已保存，但数据刷新失败，请稍后重新读取，勿重复添加。");
+        }
+        return;
+      }
+      await request<Dashboard>("/records", {
         method: "POST",
         body: JSON.stringify({ kind, value: amount }),
       });
@@ -212,8 +225,8 @@ export default function App() {
       setConnection("ready");
       setToast(kind === "water" ? "已记录 250 mL 饮水" : "体重记录已保存");
       setModal("");
-    } catch {
-      setToast("保存失败，请检查本地后端连接");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "保存失败，请重试");
     } finally {
       setSaving(false);
     }
@@ -471,6 +484,7 @@ export default function App() {
                 <span className={`toggle ${healthEnabled ? "on" : ""}`}><i /></span>
               </button>
               <p>开启后记住连接偏好，每次打开 App 或切回前台自动读取，切换日期自动更新，无需反复点击连接。系统权限由 iPhone 管理；开关开启不代表所有项目已获授权。</p>
+              <p>主动添加饮水记录时，会单独请求饮水读写权限，并保存到 Apple 健康。</p>
               <p>关闭会停止自动读取并清除当前内存中的健康数据，不会撤销系统权限。撤销权限请到 iPhone「健康」的应用授权设置。</p>
               {!isNativeIPhone() && <p>Apple 健康连接仅支持安装到 iPhone 的 App。</p>}
               {healthError && <p className="health-error" role="alert">{healthError}</p>}

@@ -44,7 +44,7 @@ export default function AppleHealthCard({ onRead, date }: { date?: string; onRea
           <Heart size={20} />
           Apple 健康
         </span>
-        <small>只读连接</small>
+        <small>健康数据连接</small>
       </div>
       <p className="apple-health-description">
         申请读取本机支持的常规健康数据，你可以逐项选择允许。当前页面仅查询已接入的指标。
