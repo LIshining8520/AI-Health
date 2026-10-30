@@ -24,6 +24,10 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>选择你主动添加到对话的图片，仅在点击发送后提交给 DeepSeek 分析。</string>
+	<key>NSCameraUsageDescription</key>
+	<string>拍摄你希望添加到对话的图片，仅在点击发送后提交给 DeepSeek 分析。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>当你主动添加饮水记录时，冷酸宁会将饮水量写入 Apple 健康，以便统一保存和统计。</string>
 	<key>NSHealthShareUsageDescription</key>

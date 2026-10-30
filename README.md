@@ -144,3 +144,12 @@ backend/.venv/bin/python backend/import_apple_health.py /绝对路径/导出.xml
 在 Vercel Production 环境配置 `DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`、`LAN_CHAT_TOKEN`（当前测试客户端访问令牌）。本地 `.env`、`.env.local`、`data`、虚拟环境和测试文件通过 `.vercelignore` 排除。不要上传包含密钥的构建产物。该版本用于个人手机测试，共享客户端令牌不等于多用户登录系统。
 
 手机通过已忽略的 `frontend/.env.ios.local` 设置 HTTPS 地址和对应测试访问令牌，再运行 `npm run ios:sync` 打包。普通聊天仅发送对话文字；用户请求今日健康分析时提交手机当天摘要。后端不保存健康摘要或聊天历史。云端上线后不再要求 Mac 常驻或同 Wi-Fi。
+
+
+## 聊天 Tools 与附件
+
+聊天页「＋」展开淡紫色 Tools 面板，可选择图片、文件或文件夹；iPhone 使用原生文件夹选择器，网页使用目录选择。选中文件后先在本机预览和移除，点击发送后才经后端交给 DeepSeek 分析，不在后端持久化附件。附件随本次对话保留在内存，后续问题会带上最近 20 条消息内的附件上下文；开始新对话或重启后清除。
+
+支持 PNG/JPEG/WebP/GIF、PDF、DOCX、TXT/Markdown/CSV/JSON。PDF 同时提取正文和页面图像，支持扫描件；DOCX 仅提取正文，不含嵌入图片。文件夹仅导入支持格式并保留相对路径。每个会话最多 8 个文件、原始文件合计 2.5 MB；每份 PDF 最多 12 页，会话图片与 PDF 页面合计最多 16 张，正文最多 10 万字符，超限提示拆分或新建对话，不静默截断。
+
+附件对话使用支持视觉的 `deepseek-flash`，沿用服务端 `DEEPSEEK_API_KEY`，普通聊天继续使用 `DEEPSEEK_MODEL`。依赖 PyMuPDF 处理 PDF；验证命令：`cd backend && .venv/bin/python -m unittest test_chat_attachments test_ai_chat test_lan_chat test_report`。

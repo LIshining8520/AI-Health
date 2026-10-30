@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import { validateAttachments, attachmentBytes, isImageAttachment } from '../src/chat-attachments.ts';
+assert.equal(attachmentBytes({name:'one.txt',data:'YQ=='}),1);
+assert.equal(attachmentBytes({name:'two.txt',data:'YWI='}),2);
+assert.equal(isImageAttachment({name:'photo.JPG',data:'YQ=='}),true);
+validateAttachments([{name:'folder/photo.jpg',data:'YQ=='}]);
+assert.throws(() => validateAttachments([{name:'../photo.jpg',data:'YQ=='}]));
+assert.throws(() => validateAttachments([{name:'photo.heic',data:'YQ=='}]));
+assert.throws(() => validateAttachments(Array.from({length:9},()=>({name:'photo.jpg',data:'YQ=='}))));
+assert.throws(() => validateAttachments([{name:'large.jpg',data:'A'.repeat(3_400_000)}]));
+console.log('Attachment validation checks passed');

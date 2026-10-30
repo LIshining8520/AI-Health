@@ -1,12 +1,20 @@
 import Capacitor
 import HealthKit
 import UIKit
+import UniformTypeIdentifiers
+import PhotosUI
+import ImageIO
+import AVFoundation
 
 @objc(HealthKitPlugin)
-public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
+public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate, PHPickerViewControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
     public let identifier = "HealthKitPlugin"
     public let jsName = "HealthKit"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "pickImages", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takePhoto", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pickFiles", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pickFolder", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "exportData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestReadAccess", returnType: CAPPluginReturnPromise),
@@ -19,6 +27,258 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private func isReadDenied(_ error: Error) -> Bool {
         let nsError = error as NSError
         return nsError.domain == HKErrorDomain && [HKError.Code.errorAuthorizationDenied.rawValue, HKError.Code.errorNoData.rawValue].contains(nsError.code)
+    }
+
+    private var imageCall: CAPPluginCall?
+
+    private func photoAttachment(_ image: UIImage, name: String) throws -> [String: String] {
+        let longest = max(image.size.width, image.size.height)
+        guard longest > 0 else { throw NSError(domain: "Photos", code: 1, userInfo: [NSLocalizedDescriptionKey: "图片尺寸无效"]) }
+        var scale = min(1, 1600 / longest)
+        for _ in 0..<4 {
+            let size = CGSize(width: max(1, image.size.width * scale), height: max(1, image.size.height * scale))
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            format.opaque = true
+            let resized = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                UIColor.white.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+                image.draw(in: CGRect(origin: .zero, size: size))
+            }
+            for quality in [0.8, 0.6, 0.4] {
+                if let data = resized.jpegData(compressionQuality: quality), data.count <= 280_000 {
+                    let safeName = String(URL(fileURLWithPath: name).deletingPathExtension().lastPathComponent.prefix(180))
+                    return ["name": (safeName.isEmpty ? "照片" : safeName) + ".jpg", "data": data.base64EncodedString()]
+                }
+            }
+            scale *= 0.7
+        }
+        throw NSError(domain: "Photos", code: 2, userInfo: [NSLocalizedDescriptionKey: "图片压缩失败，请尝试另一张图片"])
+    }
+
+    @objc func pickImages(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.imageCall == nil, let controller = self.bridge?.viewController, controller.presentedViewController == nil else {
+                call.reject("请关闭当前系统弹窗后重试", "PICKER_BUSY"); return
+            }
+            self.imageCall = call
+            var configuration = PHPickerConfiguration()
+            configuration.filter = .images
+            configuration.selectionLimit = 8
+            configuration.preferredAssetRepresentationMode = .compatible
+            let picker = PHPickerViewController(configuration: configuration)
+            picker.delegate = self
+            controller.present(picker, animated: true)
+        }
+    }
+
+    public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        guard let call = imageCall else { picker.dismiss(animated: true); return }
+        picker.dismiss(animated: true) {
+            guard !results.isEmpty else {
+                self.imageCall = nil; call.resolve(["files": [], "cancelled": true]); return
+            }
+            let group = DispatchGroup()
+            let lock = NSLock()
+            var files: [Int: [String: String]] = [:]
+            var failure: Error?
+            for (index, result) in results.enumerated() {
+                group.enter()
+                result.itemProvider.loadFileRepresentation(forTypeIdentifier: UTType.image.identifier) { url, error in
+                    defer { group.leave() }
+                    do {
+                        if let error = error { throw error }
+                        guard let url = url,
+                              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+                              let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 1600] as CFDictionary) else {
+                            throw NSError(domain: "Photos", code: 3, userInfo: [NSLocalizedDescriptionKey: "无法读取照片，请确认 iCloud 原图已下载后重试"])
+                        }
+                        let file = try self.photoAttachment(UIImage(cgImage: thumbnail), name: result.itemProvider.suggestedName ?? "照片-\(index + 1)")
+                        lock.lock(); files[index] = file; lock.unlock()
+                    } catch { lock.lock(); failure = error; lock.unlock() }
+                }
+            }
+            group.notify(queue: .main) {
+                self.imageCall = nil
+                if let failure = failure { call.reject("图片读取失败：" + failure.localizedDescription, "PHOTO_READ_FAILED", failure) }
+                else { call.resolve(["files": files.keys.sorted().compactMap { files[$0] }]) }
+            }
+        }
+    }
+
+    @objc func takePhoto(_ call: CAPPluginCall) {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized: presentCamera(call)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { allowed in
+                if allowed { self.presentCamera(call) }
+                else { call.reject("未允许相机权限，请在 iPhone 设置中允许冷酸宁使用相机。", "CAMERA_DENIED") }
+            }
+        default: call.reject("未允许相机权限，请在 iPhone 设置中允许冷酸宁使用相机。", "CAMERA_DENIED")
+        }
+    }
+
+    private func presentCamera(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+                call.reject("当前设备无法使用相机", "CAMERA_UNAVAILABLE"); return
+            }
+            guard self.imageCall == nil, let controller = self.bridge?.viewController, controller.presentedViewController == nil else {
+                call.reject("请关闭当前系统弹窗后重试", "PICKER_BUSY"); return
+            }
+            self.imageCall = call
+            let picker = UIImagePickerController()
+            picker.sourceType = .camera
+            picker.delegate = self
+            controller.present(picker, animated: true)
+        }
+    }
+
+    public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        let call = imageCall
+        imageCall = nil
+        picker.dismiss(animated: true) { call?.resolve(["files": [], "cancelled": true]) }
+    }
+
+    public func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+        let call = imageCall
+        imageCall = nil
+        picker.dismiss(animated: true) {
+            guard let call = call, let image = info[.originalImage] as? UIImage else { call?.reject("未能读取拍摄的图片", "PHOTO_READ_FAILED"); return }
+            do { call.resolve(["files": [try self.photoAttachment(image, name: "拍照-\(Int(Date().timeIntervalSince1970))")]]) }
+            catch { call.reject(error.localizedDescription, "PHOTO_READ_FAILED", error) }
+        }
+    }
+
+    private var filesCall: CAPPluginCall?
+
+    @objc func pickFiles(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.filesCall == nil, self.folderCall == nil, self.imageCall == nil,
+                  let controller = self.bridge?.viewController, controller.presentedViewController == nil else {
+                call.reject("请关闭当前系统弹窗后重试", "PICKER_BUSY"); return
+            }
+            self.filesCall = call
+            let types = [UTType.pdf, .image, .plainText, .commaSeparatedText, .json]
+                + ["docx", "md"].compactMap { UTType(filenameExtension: $0) }
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: types, asCopy: true)
+            picker.allowsMultipleSelection = true
+            picker.delegate = self
+            controller.present(picker, animated: true)
+        }
+    }
+
+    private func selectedFileAttachment(_ url: URL) throws -> [String: String] {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let ext = url.pathExtension.lowercased()
+        let images: Set<String> = ["png", "jpg", "jpeg", "webp", "gif", "heic", "heif"]
+        let documents: Set<String> = ["pdf", "docx", "txt", "md", "csv", "json"]
+        guard images.contains(ext) || documents.contains(ext) else {
+            throw NSError(domain: "Files", code: 6, userInfo: [NSLocalizedDescriptionKey: "不支持的文件格式：" + url.lastPathComponent])
+        }
+        var result: [String: String]?
+        var readError: Error?
+        var coordinationError: NSError?
+        NSFileCoordinator().coordinate(readingItemAt: url, options: .withoutChanges, error: &coordinationError) { localURL in
+            do {
+                let size = try localURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                guard size <= (images.contains(ext) ? 25_000_000 : 2_500_000) else {
+                    throw NSError(domain: "Files", code: 7, userInfo: [NSLocalizedDescriptionKey: images.contains(ext) ? "图片超过 25 MB" : "文件超过 2.5 MB，请压缩或拆分后重试"])
+                }
+                if images.contains(ext) {
+                    guard let source = CGImageSourceCreateWithURL(localURL as CFURL, nil),
+                          let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 1600] as CFDictionary) else {
+                        throw NSError(domain: "Files", code: 8, userInfo: [NSLocalizedDescriptionKey: "图片损坏或无法读取"])
+                    }
+                    result = try self.photoAttachment(UIImage(cgImage: thumbnail), name: url.lastPathComponent)
+                } else {
+                    let data = try Data(contentsOf: localURL)
+                    guard !data.isEmpty, data.count <= 2_500_000 else {
+                        throw NSError(domain: "Files", code: 9, userInfo: [NSLocalizedDescriptionKey: "文件为空或超过 2.5 MB"])
+                    }
+                    result = ["name": url.lastPathComponent, "data": data.base64EncodedString()]
+                }
+            } catch { readError = error }
+        }
+        if let error = coordinationError { throw error }
+        if let error = readError { throw error }
+        guard let result = result else { throw NSError(domain: "Files", code: 10, userInfo: [NSLocalizedDescriptionKey: "未能读取文件，请确认 iCloud 文件已下载后重试"]) }
+        return result
+    }
+
+    private var folderCall: CAPPluginCall?
+
+    @objc func pickFolder(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard self.folderCall == nil, let controller = self.bridge?.viewController,
+                  controller.presentedViewController == nil else {
+                call.reject("请关闭当前系统弹窗后重试", "PICKER_BUSY")
+                return
+            }
+            self.folderCall = call
+            let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder], asCopy: false)
+            picker.delegate = self
+            controller.present(picker, animated: true)
+        }
+    }
+
+    public func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        filesCall?.resolve(["files": [], "cancelled": true])
+        filesCall = nil
+        folderCall?.resolve(["files": [], "cancelled": true])
+        folderCall = nil
+    }
+
+    public func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        if let call = filesCall {
+            DispatchQueue.global(qos: .userInitiated).async {
+                defer { DispatchQueue.main.async { self.filesCall = nil } }
+                do {
+                    guard urls.count <= 8 else { throw NSError(domain: "Files", code: 11, userInfo: [NSLocalizedDescriptionKey: "最多选择 8 个文件，请减少后重试"]) }
+                    let files = try urls.map { try self.selectedFileAttachment($0) }
+                    let size = files.reduce(0) { $0 + (Data(base64Encoded: $1["data"] ?? "")?.count ?? 0) }
+                    guard size <= 2_500_000 else { throw NSError(domain: "Files", code: 12, userInfo: [NSLocalizedDescriptionKey: "附件合计超过 2.5 MB，请减少文件或拆分发送"]) }
+                    call.resolve(["files": files])
+                } catch { call.reject("文件读取失败：" + error.localizedDescription, "FILE_READ_FAILED", error) }
+            }
+            return
+        }
+        guard let call = folderCall else { return }
+        folderCall = nil
+        guard let root = urls.first else { call.resolve(["files": []]); return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let scoped = root.startAccessingSecurityScopedResource()
+            defer { if scoped { root.stopAccessingSecurityScopedResource() } }
+            do {
+                let allowed: Set<String> = ["png", "jpg", "jpeg", "webp", "gif", "pdf", "docx", "txt", "md", "csv", "json"]
+                var failure: Error?
+                guard let entries = FileManager.default.enumerator(at: root, includingPropertiesForKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey], options: [.skipsHiddenFiles, .skipsPackageDescendants], errorHandler: { _, error in failure = error; return false }) else {
+                    throw NSError(domain: "Files", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法读取文件夹"])
+                }
+                var files: [[String: String]] = []
+                var size = 0
+                var examined = 0
+                for case let url as URL in entries {
+                    examined += 1
+                    if examined > 500 { throw NSError(domain: "Files", code: 2, userInfo: [NSLocalizedDescriptionKey: "文件夹过大，请选择更小的子文件夹"]) }
+                    let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+                    if values.isSymbolicLink == true { entries.skipDescendants(); continue }
+                    guard values.isRegularFile == true, allowed.contains(url.pathExtension.lowercased()) else { continue }
+                    size += values.fileSize ?? 0
+                    if files.count >= 8 || size > 2_500_000 {
+                        throw NSError(domain: "Files", code: 3, userInfo: [NSLocalizedDescriptionKey: "最多 8 个支持的文件，合计不超过 2.5 MB，请选择更小的文件夹"])
+                    }
+                    let data = try Data(contentsOf: url)
+                    if data.count > 2_500_000 { throw NSError(domain: "Files", code: 4, userInfo: [NSLocalizedDescriptionKey: "文件超过 2.5 MB"]) }
+                    let name = root.lastPathComponent + "/" + String(url.path.dropFirst(root.path.count + 1))
+                    files.append(["name": name, "data": data.base64EncodedString()])
+                }
+                if let failure = failure { throw failure }
+                if files.isEmpty { throw NSError(domain: "Files", code: 5, userInfo: [NSLocalizedDescriptionKey: "文件夹中没有可读取的图片、PDF、Word 或文本文件"]) }
+                call.resolve(["files": files])
+            } catch { call.reject(error.localizedDescription, "FOLDER_READ_FAILED", error) }
+        }
     }
 
     @objc func exportData(_ call: CAPPluginCall) {

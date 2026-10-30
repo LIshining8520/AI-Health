@@ -18,6 +18,7 @@ import type { AppleHealthSummary } from "./apple-health";
 import { exportAppleHealthData, hasReadableHealthData, addAppleHealthWeight, addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
 import { clearStoredAvatar, prepareAvatar, readStoredAvatar, storeAvatar } from "./avatar";
 import IconBubble from "./components/IconBubble";
+import { readChatFiles, pickNativeFiles, pickNativeImages, pickNativeFolder, validateAttachments, type ChatAttachment } from "./chat-attachments";
 import ChatPage, { ChatComposer } from "./pages/ChatPage";
 import HealthPage from "./pages/HealthPage";
 import MinePage from "./pages/MinePage";
@@ -49,6 +50,8 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
   const [aiReady, setAiReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -204,27 +207,45 @@ export default function App() {
       setMessages(items => [...items, { role: "assistant", text: error instanceof Error ? error.message : "健康分析失败，请重试。", error: true }]);
     } finally { setSending(false); }
   }
+  async function addChatAttachments(read: () => Promise<ChatAttachment[]>) {
+    if (attachmentBusy || sending) return;
+    setAttachmentBusy(true);
+    try {
+      const incoming = await read();
+      const next = [...attachments, ...incoming];
+      validateAttachments([...messages.filter(message => !message.error).flatMap(message => message.attachments ?? []), ...next]);
+      setAttachments(next);
+    } catch (error) { setToast(error instanceof Error ? error.message : "文件读取失败"); }
+    finally { setAttachmentBusy(false); }
+  }
   async function send(text = input) {
-    if (!text.trim() || sending) return;
-    if (/(今天|今日|当天)/.test(text) && /(健康|身体|报告)/.test(text) && /(分析|报告|总结|评估|解读|建议|怎么样|如何)/.test(text) && !/(不要|不用|无需).{0,6}(分析|报告)/.test(text)) {
+    if ((!text.trim() && !attachments.length) || sending || attachmentBusy) return;
+    const attached = [...attachments];
+    const prompt = text.trim() || "请分析这些附件，概括重点，并说明不确定的信息。";
+    if (!attached.length && /(今天|今日|当天)/.test(text) && /(健康|身体|报告)/.test(text) && /(分析|报告|总结|评估|解读|建议|怎么样|如何)/.test(text) && !/(不要|不用|无需).{0,6}(分析|报告)/.test(text)) {
       await analyzeToday(text.trim());
       return;
     }
     setInput("");
-    setMessages((items) => [...items, { role: "user", text: text.trim() }]);
+    setAttachments([]);
+    const userMessage: Message = { role: "user", text: prompt, attachments: attached };
+    setMessages((items) => [...items, userMessage]);
     setSending(true);
     try {
       const reply = await request<{ reply: string }>("/chat", {
         method: "POST",
-        body: JSON.stringify({ message: text.trim(), history: messages.slice(1).filter(m => !m.error && !m.report).slice(-20).map(m => ({ role: m.role, content: m.text })) }),
+        body: JSON.stringify({ message: prompt, attachments: attached, history: messages.slice(1).filter(m => !m.error && !m.report).slice(-20).map(m => ({ role: m.role, content: m.text.slice(0, 4000), attachments: m.attachments ?? [] })) }),
       });
+      setAttachments([]);
       setMessages((items) => [
         ...items,
         { role: "assistant", text: reply.reply },
       ]);
     } catch (error) {
+      setAttachments(attached);
+      setInput(text);
       setMessages((items) => [
-        ...items,
+        ...items.map(item => item === userMessage ? { ...item, error: true } : item),
         {
           role: "assistant",
           text: error instanceof Error ? error.message : "暂时无法连接服务，请重试。",
@@ -383,6 +404,7 @@ export default function App() {
                 onNewChat={() => {
                   setMessages([...initialMessages]);
                   setInput("");
+                  setAttachments([]);
                 }}
                 reportLoading={sending}
                 sending={sending}
@@ -430,6 +452,13 @@ export default function App() {
                 onSend={() => void send()}
                 onAnalyze={() => void analyzeToday("帮我分析今日健康数据，并给出健康报告")}
                 onOpenPrompts={() => setModal("prompts")}
+                attachments={attachments}
+                attachmentBusy={attachmentBusy}
+                onFiles={files => void addChatAttachments(() => readChatFiles(files))}
+                onDocuments={fallback => { if (isNativeIPhone()) void addChatAttachments(pickNativeFiles); else fallback(); }}
+                onImages={(camera, fallback) => { if (isNativeIPhone()) void addChatAttachments(() => pickNativeImages(camera)); else fallback(); }}
+                onFolder={fallback => { if (isNativeIPhone()) void addChatAttachments(pickNativeFolder); else fallback(); }}
+                onRemoveAttachment={index => setAttachments(items => items.filter((_, i) => i !== index))}
               />
             )}
             <nav className="bottom-nav" aria-label="主导航">
@@ -642,7 +671,7 @@ export default function App() {
               <p>关闭会停止自动读取并清除当前内存中的健康数据，不会撤销系统权限。撤销权限请到 iPhone「健康」的应用授权设置。</p>
               {!isNativeIPhone() && <p>Apple 健康连接仅支持安装到 iPhone 的 App。</p>}
               {healthError && <p className="health-error" role="alert">{healthError}</p>}
-              <p>仅连接偏好保存在本机，健康数据不自动上传；AI 对话发送聊天文字，发送今日健康分析请求时，会自动读取当天健康摘要并发送到 DeepSeek 生成报告。</p>
+              <p>仅连接偏好保存在本机，健康数据不自动上传；AI 对话发送聊天文字和你主动发送的图片、文件附件，发送今日健康分析请求时，会自动读取当天健康摘要并发送到 DeepSeek 生成报告。</p>
             </>
           )}
           {modal === "help" && (

@@ -9,6 +9,7 @@ import os
 import sqlite3
 from typing import Literal, Optional
 
+from chat_attachments import Attachment
 from fastapi import FastAPI
 from pydantic import BaseModel, Field, model_validator
 
@@ -41,11 +42,13 @@ class RecordInput(BaseModel):
 
 
 class ChatTurn(BaseModel):
+    attachments: list[Attachment] = Field(default_factory=list, max_length=8)
     role: Literal["user", "assistant"]
     content: str = Field(min_length=1, max_length=4000)
 
 
 class ChatInput(BaseModel):
+    attachments: list[Attachment] = Field(default_factory=list, max_length=8)
     message: str = Field(min_length=1, max_length=2000)
     history: list[ChatTurn] = Field(default_factory=list, max_length=20)
 
@@ -126,7 +129,7 @@ async def chat(payload: ChatInput):
     if not text:
         from fastapi import HTTPException
         raise HTTPException(status_code=422, detail="问题不能为空")
-    return await generate(text, payload.history)
+    return await generate(text, payload.history, attachments=payload.attachments)
 
 
 @app.get('/api/apple-health')

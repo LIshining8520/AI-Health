@@ -21,6 +21,10 @@ export interface AppleHealthSummary {
   syncedAt: string;
 }
 interface HealthKitBridge {
+  pickFiles(): Promise<{ files: { name: string; data: string }[]; cancelled?: boolean }>;
+  pickFolder(): Promise<{ files: { name: string; data: string }[]; cancelled?: boolean }>;
+  pickImages(): Promise<{ files: { name: string; data: string }[] }>;
+  takePhoto(): Promise<{ files: { name: string; data: string }[] }>;
   exportData(options: { json: string }): Promise<{ completed: boolean }>;
   addWeight(options: { kilograms: number }): Promise<{ saved: boolean }>;
   addWater(options: { milliliters: number }): Promise<{ saved: boolean }>;
@@ -28,7 +32,7 @@ interface HealthKitBridge {
   requestReadAccess(): Promise<{ requestCompleted: boolean }>;
   readSummary(options?: { date?: string }): Promise<AppleHealthSummary>;
 }
-const HealthKit = registerPlugin<HealthKitBridge>("HealthKit");
+export const HealthKit = registerPlugin<HealthKitBridge>("HealthKit");
 export const isNativeIPhone = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
 export async function readAppleHealth(

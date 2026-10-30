@@ -20,4 +20,4 @@ export type Dashboard = {
   weightHistory?: { date: string; value: number; source: string }[];
   records: HealthRecord[];
 };
-export type Message = { role: "user" | "assistant"; text: string; error?: boolean; report?: boolean };
+export type Message = { attachments?: import("./chat-attachments").ChatAttachment[]; role: "user" | "assistant"; text: string; error?: boolean; report?: boolean };
