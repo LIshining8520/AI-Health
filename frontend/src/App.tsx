@@ -156,6 +156,7 @@ export default function App() {
           "报告日期": fresh.dataDate, "来源": "手机 HealthKit 实时查询（不保证全天完整）",
           "步数": fresh.steps == null ? null : Math.round(fresh.steps), "睡眠小时": fresh.sleepHours,
           "睡眠统计开始": fresh.sleepStart, "睡眠统计结束": fresh.sleepEnd,
+          "HRV（SDNN，ms，所选日最近值及均值，非实时）": fresh.hrv,
           "平均心率（次/分，非静息）": fresh.heartRate, "饮水（mL，已记录）": fresh.waterMl,
           "活动与目标": fresh.fitness, "环境噪音（dB(A)，最近一次）": fresh.noise,
           "最近体重（kg）": fresh.weightKg, "体重测量日期": fresh.weightDate,

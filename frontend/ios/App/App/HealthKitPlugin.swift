@@ -267,7 +267,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
         let group = DispatchGroup()
         let results = DispatchQueue(label: "com.zhikang.health.results")
         var summary: [String: Any] = [
-            "weightHistory": [], "workouts": [], "dataDate": formatter.string(from: today), "heartRate": NSNull(), "noise": NSNull(), "waterMl": NSNull(), "fitness": NSNull(), "steps": NSNull(), "weightKg": NSNull(), "sleepHours": NSNull(),
+            "hrvHistory": [], "weightHistory": [], "workouts": [], "dataDate": formatter.string(from: today), "hrv": NSNull(), "heartRate": NSNull(), "noise": NSNull(), "waterMl": NSNull(), "fitness": NSNull(), "steps": NSNull(), "weightKg": NSNull(), "sleepHours": NSNull(),
             "weightDate": NSNull(), "syncedAt": ISO8601DateFormatter().string(from: now),
             "sleepStart": ISO8601DateFormatter().string(from: sleepStart),
             "sleepEnd": ISO8601DateFormatter().string(from: sleepEnd)
@@ -346,6 +346,31 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
             }
         }
         store.execute(heartQuery)
+
+        group.enter()
+        let hrvQuery = HKSampleQuery(sampleType: HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN)!,
+            predicate: HKQuery.predicateForSamples(withStart: today, end: dayEnd, options: .strictStartDate), limit: HKObjectQueryNoLimit,
+            sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)]) { _, samples, error in
+            results.async {
+                if let error = error, !self.isReadDenied(error) { failures.append("HRV：\(error.localizedDescription)") }
+                let readings = (samples as? [HKQuantitySample] ?? []).filter {
+                    let value = $0.quantity.doubleValue(for: .secondUnit(with: .milli))
+                    return value.isFinite && value > 0
+                }
+                let selectedReadings = readings.filter { $0.startDate >= today && $0.startDate < dayEnd }
+                summary["hrvHistory"] = selectedReadings.sorted { $0.startDate < $1.startDate }.map {
+                    ["at": ISO8601DateFormatter().string(from: $0.startDate),
+                     "value": $0.quantity.doubleValue(for: .secondUnit(with: .milli))] as [String: Any]
+                }
+                if let latest = selectedReadings.first {
+                    let values = selectedReadings.map { $0.quantity.doubleValue(for: .secondUnit(with: .milli)) }
+                    summary["hrv"] = ["value": values[0], "average": values.reduce(0, +) / Double(values.count),
+                        "at": ISO8601DateFormatter().string(from: latest.endDate)]
+                }
+                group.leave()
+            }
+        }
+        store.execute(hrvQuery)
 
         group.enter()
         let noiseQuery = HKSampleQuery(sampleType: HKObjectType.quantityType(forIdentifier: .environmentalAudioExposure)!,
@@ -498,7 +523,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
                 summary["fitness"] = fitness
             }
             summary["warnings"] = failures
-            let hasData = ["steps", "weightKg", "sleepHours", "heartRate", "noise", "waterMl", "fitness"].contains { !(summary[$0] is NSNull) }
+            let hasData = ["steps", "weightKg", "sleepHours", "hrv", "heartRate", "noise", "waterMl", "fitness"].contains { !(summary[$0] is NSNull) }
             if !hasData && (summary["workouts"] as? [[String: Any]] ?? []).isEmpty && !failures.isEmpty {
                 call.reject("读取失败：" + failures.joined(separator: "；"), "READ_FAILED")
             } else {

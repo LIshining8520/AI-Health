@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 ZONE = ZoneInfo('Asia/Shanghai')
 TYPES = {f'HKQuantityTypeIdentifier{k}': k for k in ('StepCount', 'BodyMass', 'HeartRate')}
+TYPES['HKQuantityTypeIdentifierHeartRateVariabilitySDNN'] = 'HRV'
 TYPES['HKQuantityTypeIdentifierEnvironmentalAudioExposure'] = 'Noise'
 TYPES['HKCategoryTypeIdentifierSleepAnalysis'] = 'Sleep'
 
@@ -31,6 +32,8 @@ def parse_export(path):
     workouts = defaultdict(list)
     fitness = {}
     noise = {}
+    hrv = {}
+    hrv_samples = defaultdict(list)
     seen = set()
     count = 0
     exported = None
@@ -88,31 +91,40 @@ def parse_export(path):
                         sleep[end.date().isoformat()].append((start.timestamp(), end.timestamp()))
                 else:
                     number = float(value)
-                    if not math.isfinite(number) or number < 0:
-                        continue
-                    unit = a.get('unit')
-                    if kind == 'StepCount' and unit == 'count':
-                        steps[day][a.get('sourceName', '未知来源')] += number
-                    elif kind == 'BodyMass' and unit in ('kg', 'lb', 'g'):
-                        kg = number * {'kg': 1, 'lb': .45359237, 'g': .001}[unit]
-                        if 0 < kg <= 500 and (day not in weights or end.isoformat() > weights[day]['at']):
-                            weights[day] = {'kg': kg, 'at': end.isoformat()}
-                    elif kind == 'Noise' and unit == 'dBASPL':
-                        if day not in noise or end.isoformat() > noise[day]['at']:
-                            noise[day] = {'value': number, 'at': end.isoformat()}
-                    elif kind == 'HeartRate' and unit == 'count/min':
-                        hearts[day][0] += number
-                        hearts[day][1] += 1
+                    if math.isfinite(number) and number >= 0:
+                        unit = a.get('unit')
+                        if kind == 'StepCount' and unit == 'count':
+                            steps[day][a.get('sourceName', '未知来源')] += number
+                        elif kind == 'BodyMass' and unit in ('kg', 'lb', 'g'):
+                            kg = number * {'kg': 1, 'lb': .45359237, 'g': .001}[unit]
+                            if 0 < kg <= 500 and (day not in weights or end.isoformat() > weights[day]['at']):
+                                weights[day] = {'kg': kg, 'at': end.isoformat()}
+                        elif kind == 'Noise' and unit == 'dBASPL':
+                            if day not in noise or end.isoformat() > noise[day]['at']:
+                                noise[day] = {'value': number, 'at': end.isoformat()}
+                        elif kind == 'HRV' and unit in ('ms', 's') and number > 0:
+                            value_ms = number * (1000 if unit == 's' else 1)
+                            hrv_samples[day].append({'at': start.isoformat(), 'value': value_ms})
+                            item = hrv.setdefault(day, {'value': value_ms, 'at': end.isoformat(), 'total': 0., 'count': 0})
+                            item['total'] += value_ms
+                            item['count'] += 1
+                            if end.isoformat() >= item['at']:
+                                item.update(value=value_ms, at=end.isoformat())
+                        elif kind == 'HeartRate' and unit == 'count/min':
+                            hearts[day][0] += number
+                            hearts[day][1] += 1
         stack.pop()
         if stack:
             stack[-1].remove(element)
         element.clear()
-    days = sorted(set(steps) | set(sleep) | set(hearts) | set(weights) | set(fitness) | set(noise) | set(workouts))
+    days = sorted(set(steps) | set(sleep) | set(hearts) | set(weights) | set(fitness) | set(noise) | set(workouts) | set(hrv))
     rows = []
     for day in days:
         source = max(steps[day], key=steps[day].get) if steps[day] else None
         rows.append({'date': day, 'steps': round(steps[day][source]) if source else None,
                      'stepSource': source, 'sleepHours': round(merged_hours(sleep[day]), 2) if sleep[day] else None,
+                     'hrvHistory': sorted(hrv_samples[day], key=lambda item: item['at']),
+                     'hrv': {k: hrv[day][k] for k in ('value', 'at')} | {'average': hrv[day]['total'] / hrv[day]['count']} if day in hrv else None,
                      'weightKg': weights.get(day, {}).get('kg'), 'fitness': fitness.get(day), 'workouts': sorted(workouts[day], key=lambda w: w['start'], reverse=True), 'noise': noise.get(day),
                      'heartRate': round(hearts[day][0] / hearts[day][1], 1) if hearts[day][1] else None})
     return {'exportedAt': exported, 'importedAt': datetime.now(ZONE).isoformat(),

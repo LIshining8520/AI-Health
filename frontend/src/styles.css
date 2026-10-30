@@ -1130,3 +1130,5 @@ h3 {
 }
 
 .fitness-goals { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; font-size: 10px; line-height: 1.6; }
+
+.hrv-card { margin-bottom: 16px; }

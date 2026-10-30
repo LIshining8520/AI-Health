@@ -60,7 +60,7 @@ class LocalPrototypeTest(unittest.TestCase):
             with tempfile.TemporaryDirectory() as folder:
                 main.DB_PATH = Path(folder) / 'test.sqlite3'
                 (Path(folder) / 'apple-health.json').write_text(json.dumps({'days': [
-                    {'date': '2026-10-28', 'weightKg': 65, 'heartRate': 70, 'steps': 2000, 'sleepHours': 7},
+                    {'date': '2026-10-28', 'weightKg': 65, 'heartRate': 70, 'hrvHistory': [{'at': '2026-10-28T18:00:00+08:00', 'value': 60}], 'hrv': {'value': 60, 'average': 50, 'at': '2026-10-28T18:00:00+08:00'}, 'steps': 2000, 'sleepHours': 7},
                     {'date': '2026-10-29', 'heartRate': 100, 'steps': 5000}]}))
                 client = TestClient(main.app)
                 first = client.get('/api/dashboard?date=2026-10-28').json()
@@ -68,6 +68,10 @@ class LocalPrototypeTest(unittest.TestCase):
                 empty = client.get('/api/dashboard?date=2026-10-27').json()
                 self.assertEqual(first['heartRate']['value'], 70)
                 self.assertEqual(first['sleep']['hours'], 7)
+                self.assertEqual(first['hrvHistory'], [{'at': '2026-10-28T18:00:00+08:00', 'value': 60}])
+                self.assertEqual(second['hrvHistory'], [])
+                self.assertEqual(empty['hrvHistory'], [])
+                self.assertIsNone(second['hrv'])
                 self.assertEqual(second['steps'], 5000)
                 self.assertIsNone(second['weight'])
                 self.assertIsNone(second['sleep'])

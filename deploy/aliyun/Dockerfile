@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/app.py backend/lan_chat.py backend/main.py backend/ai_chat.py ./
+EXPOSE 9000
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9000", "--no-access-log"]

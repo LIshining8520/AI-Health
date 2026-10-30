@@ -34,7 +34,7 @@ export default function AppleHealthCard({ onRead, date }: { date?: string; onRea
   }
   const empty =
     summary &&
-    [summary.steps, summary.sleepHours, summary.weightKg, summary.heartRate, summary.waterMl, summary.noise, summary.fitness].every(
+    [summary.steps, summary.sleepHours, summary.weightKg, summary.heartRate, summary.hrv, summary.waterMl, summary.noise, summary.fitness].every(
       (v) => v === null,
     );
   return (

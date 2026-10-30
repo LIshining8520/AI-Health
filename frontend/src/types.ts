@@ -11,6 +11,8 @@ export type Dashboard = {
   noise?: { date: string; value: number; at: string } | null;
   sleep?: { date: string; hours: number } | null;
   fitness?: { goalDate?: string; workoutOnly?: boolean; source?: string; date: string; activeKcal: number | null; activeGoal: number | null; exerciseMinutes: number | null; exerciseGoal: number | null; standHours: number | null; standGoal: number | null } | null;
+  hrvHistory?: { at: string; value: number }[];
+  hrv?: { date: string; value: number; average: number; at: string } | null;
   heartRate?: { date: string; value: number } | null;
   weight: number | null;
   date?: string;

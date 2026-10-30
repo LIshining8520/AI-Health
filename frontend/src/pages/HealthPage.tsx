@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Activity,
   ArrowUpRight,
   Droplet,
   Ear,
@@ -10,6 +11,7 @@ import {
   TrendingUp,
   Weight,
 } from "lucide-react";
+import HrvTrend from "../components/HrvTrend";
 import HealthCalendar from "../components/HealthCalendar";
 import { isNativeIPhone } from "../apple-health";
 import type { AppleHealthSummary } from "../apple-health";
@@ -54,6 +56,8 @@ export default function HealthPage({
   const dashboard: Dashboard | null = native ? {
     water: date === readDate ? nativeSummary?.waterMl ?? 0 : 0, weight: nativeSummary?.weightKg ?? null, weightHistory, records: [],
     workouts: date === readDate ? nativeSummary?.workouts ?? [] : [],
+    hrvHistory: date === readDate ? nativeSummary?.hrvHistory ?? [] : [],
+    hrv: date === readDate && nativeSummary?.hrv ? { date, ...nativeSummary.hrv } : null,
     heartRate: date === readDate && nativeSummary?.heartRate != null ? { date, value: nativeSummary.heartRate } : null,
     noise: date === readDate && nativeSummary?.noise ? { date, ...nativeSummary.noise } : null,
     fitness: date === readDate && nativeSummary?.fitness ? { date, ...nativeSummary.fitness } : null,
@@ -106,7 +110,19 @@ export default function HealthPage({
         </p>
         <p className="apple-health-meta">所选日期的样本均值，非实时心率</p>
       </section>
-      <section className="card metric-card noise-card">
+         <section className="card metric-card ">
+        <div className="metric-title"><IconBubble icon={Activity} color="mint" /><span>HRV · 心率变异性</span></div>
+        <p className="metric-hint">所选日最近测量 · SDNN</p>
+        <div className="metric-value" aria-label="最近一次 HRV">
+          {dashboard?.hrv ? dashboard.hrv.value.toFixed(1) : "—"}<small>ms</small>
+        </div>
+        <p className="metric-hint">{dashboard?.hrv ? `当日平均 ${dashboard.hrv.average.toFixed(1)} ms` : "暂无 HRV 数据"}</p>
+        <p className="apple-health-meta">{dashboard?.hrv ? `${new Date(dashboard.hrv.at).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}（上海时间）· Apple 健康 · 非实时测量` : "需要设备记录并允许读取心率变异性"}</p>
+      </section>
+      </div>
+
+      <div className="metric-grid">
+            <section className="card metric-card noise-card">
         <div className="metric-title">
           <IconBubble icon={Ear} color="noise" />
           <span>环境噪音</span>
@@ -119,8 +135,7 @@ export default function HealthPage({
         <p className="metric-hint">{dashboard?.noise ? `${dashboard.noise.date} · Apple 健康` : "暂无环境噪音记录"}</p>
         <p className="apple-health-meta">{dashboard?.noise ? new Date(dashboard.noise.at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Shanghai" }) + "（上海时间）· 非实时测量" : "导入记录后显示测量值"}</p>
       </section>
-      </div>
-      <div className="metric-grid">
+
         <section className="card metric-card">
           <div className="metric-title">
             <IconBubble icon={Droplet} />
@@ -166,7 +181,13 @@ export default function HealthPage({
             <ArrowUpRight size={14} />
           </button>
         </section>
+        <section className="card metric-card" >
+        <div className="metric-title"><IconBubble icon={Footprints} color="mint" /><span>步数</span></div>
+        <div className="metric-value">{dashboard?.steps == null ? "—" : Math.round(dashboard.steps).toLocaleString("zh-CN", { maximumFractionDigits: 0 })}<small>步</small></div>
+        <p className="metric-hint">{date} · Apple 健康 · 每日最大单一来源</p>
+      </section>
       </div>
+      <HrvTrend history={dashboard?.hrvHistory ?? []} date={date} />
       <section className="card trend-card">
         <div className="card-heading">
           <span>
@@ -248,17 +269,9 @@ export default function HealthPage({
         <p className="chart-caption">同一天取最近一次测量，缺失日期不补值；连线表示测量点之间的变化。{trend.length === 1 ? "当前仅有一个测量点。" : ""}</p>
         </> : <p className="health-empty">暂无体重数据，请导入 Apple 健康记录或记录体重。</p>}
       </section>
-      <section className="card metric-card" style={{ marginTop: 16 }}>
-        <div className="metric-title"><IconBubble icon={Footprints} color="mint" /><span>步数</span></div>
-        <div className="metric-value">{dashboard?.steps == null ? "—" : Math.round(dashboard.steps).toLocaleString("zh-CN", { maximumFractionDigits: 0 })}<small>步</small></div>
-        <p className="metric-hint">{date} · Apple 健康 · 每日最大单一来源</p>
-      </section>
+
       {!native && <details style={{ marginTop: 20 }}><summary>数据来源与连接</summary><ImportedHealthCard />{!native && <AppleHealthCard />}</details>}
       {!canRecord && <p className="chart-caption">历史日期仅供查看，新增记录请切换到今天。</p>}
-      <button className="wide-button" disabled={!canRecord} onClick={onRecordWeight}>
-        <Plus size={18} />
-        添加健康记录
-      </button>
     </>
   );
 }

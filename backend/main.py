@@ -79,8 +79,11 @@ def dashboard(selected_date: Optional[Date] = None):
                   for row in reversed(snapshot["days"]) if row.get("noise")), None)
     heart = next(({"date": row["date"], "value": row["heartRate"]}
                   for row in reversed(snapshot["days"]) if row.get("heartRate") is not None), None)
+    hrv = next(({"date": row["date"], **row["hrv"]}
+                for row in reversed(snapshot["days"]) if row.get("hrv")), None)
     if selected_date:
         row = next((row for row in snapshot["days"] if row["date"] == day), {})
+        hrv = {"date": day, **row["hrv"]} if row.get("hrv") else None
         heart = {"date": day, "value": row["heartRate"]} if row.get("heartRate") is not None else None
         sleep = {"date": day, "hours": row["sleepHours"]} if row.get("sleepHours") is not None else None
         fitness = {"date": day, **row["fitness"]} if row.get("fitness") else None
@@ -89,7 +92,7 @@ def dashboard(selected_date: Optional[Date] = None):
         water = sum(row["value"] for row in rows if row["kind"] == "water" and datetime.fromisoformat(row["created_at"]).astimezone(ZoneInfo("Asia/Shanghai")).date().isoformat() == day)
     else:
         row = {}
-    return {"workouts": row.get("workouts", []), "date": day, "steps": row.get("steps"), "water": water, "weight": weight, "weightHistory": history, "heartRate": heart, "sleep": sleep, "fitness": fitness, "noise": noise, "records": rows, "demo": not bool(selected_date)}
+    return {"workouts": row.get("workouts", []), "date": day, "steps": row.get("steps"), "water": water, "weight": weight, "weightHistory": history, "hrvHistory": row.get("hrvHistory", []), "hrv": hrv, "heartRate": heart, "sleep": sleep, "fitness": fitness, "noise": noise, "records": rows, "demo": not bool(selected_date)}
 
 
 @app.get("/api/health")
@@ -160,6 +163,7 @@ def report_preview():
         '站立（小时）': data['fitness']['standHours'] if data['fitness'] else None,
         '平均心率（次/分，样本均值，非静息心率）': data['heartRate']['value'] if data['heartRate'] else None,
         '环境噪音（dB(A)，当天最近测量）': data['noise']['value'] if data['noise'] else None,
+        'HRV（SDNN，ms，最近值及当日均值，非实时）': data['hrv'],
         '环境噪音测量时间': data['noise']['at'] if data['noise'] else None,
         '已手动记录饮水（mL，不含未记录饮水）': data['water'],
         '当天体重（kg）': data['weight'],

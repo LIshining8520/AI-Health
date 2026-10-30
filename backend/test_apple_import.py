@@ -25,6 +25,22 @@ class AppleImportTest(unittest.TestCase):
             self.assertEqual(result['days'][0]['fitness']['exerciseMinutes'], 45)
             self.assertIsNone(result['days'][0]['fitness']['standGoal'])
 
+    def test_hrv_units_latest_mean_and_empty_day(self):
+        def record(value, unit, day, hour):
+            return f'<Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" value="{value}" unit="{unit}" startDate="2026-10-{day} {hour}:00:00 +0800" endDate="2026-10-{day} {hour}:01:00 +0800"/>'
+        latest = record(60, 'ms', '28', '18')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'export.xml'
+            path.write_text('<HealthData>' + latest + latest + record(.04, 's', '28', '08') + record(0, 'ms', '28', '20') + record('NaN', 'ms', '28', '21') + record(70, 'ms', '29', '08') + '</HealthData>')
+            days = parse_export(path)['days']
+            self.assertEqual(len(days), 2)
+            self.assertEqual(days[0]['hrv']['value'], 60)
+            self.assertEqual(days[0]['hrv']['average'], 50)
+            self.assertIn('18:01', days[0]['hrv']['at'])
+            self.assertEqual(days[1]['hrv']['average'], 70)
+            self.assertEqual([row['value'] for row in days[0]['hrvHistory']], [40, 60])
+            self.assertIn('08:00:00', days[0]['hrvHistory'][0]['at'])
+
 
 if __name__ == '__main__':
     unittest.main()

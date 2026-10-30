@@ -5,6 +5,8 @@ export interface AppleHealthSummary {
   dataDate: string;
   workouts: Workout[];
   warnings?: string[];
+  hrvHistory: NonNullable<Dashboard["hrvHistory"]>;
+  hrv: { value: number; average: number; at: string } | null;
   heartRate: number | null;
   waterMl: number | null;
   noise: { value: number; at: string } | null;
