@@ -20,10 +20,9 @@ import HealthPage from "./pages/HealthPage";
 import MinePage from "./pages/MinePage";
 import type { Dashboard, Message } from "./types";
 
-type ReportPreview = { data: Record<string, unknown>; signature: string };
 type Tab = "chat" | "health" | "mine";
 const initialMessages: Message[] = [
-  { role: "assistant", text: "你好，我是知康。可以和我聊聊健康习惯或一般健康问题。对话会发送到 DeepSeek，导入的健康数据不会自动附带。" },
+  { role: "assistant", text: "你好，我是知康。可以和我聊聊健康习惯或一般健康问题。对话会发送到 DeepSeek。发送“分析今日健康数据”时，会自动读取当天健康摘要并交给 DeepSeek 分析。" },
 ];
 const API = (isNativeIPhone() ? import.meta.env.VITE_MOBILE_API_BASE_URL : "") || import.meta.env.VITE_API_BASE_URL || "";
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -47,8 +46,6 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("chat");
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
-  const [reportPreview, setReportPreview] = useState<ReportPreview | null>(null);
-  const [reportLoading, setReportLoading] = useState(false);
   const [aiReady, setAiReady] = useState(false);
   const [sending, setSending] = useState(false);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -142,39 +139,39 @@ export default function App() {
     } catch (error) { setHealthError(error instanceof Error ? error.message : "健康连接失败"); }
     finally { setHealthBusy(false); }
   }
-  async function previewReport() {
-    if (sending || reportLoading) return;
-    if (isNativeIPhone()) { setToast("手机局域网版暂支持普通聊天，健康报告请先在电脑端生成。"); return; }
-    setReportLoading(true);
-    setReportPreview(null);
-    try {
-      const result = await request<ReportPreview>("/report/preview");
-      setReportPreview(result);
-      setModal("health-report");
-    } catch (error) {
-      setToast(error instanceof Error ? error.message : "读取今日数据失败");
-    } finally { setReportLoading(false); }
-  }
-  async function generateReport() {
-    if (!reportPreview || sending) return;
-    const preview = reportPreview;
-    setModal("");
-    setReportPreview(null);
+  async function analyzeToday(text: string) {
+    if (sending) return;
+    setInput("");
     setTab("chat");
     setSending(true);
-    setInput("");
-    setMessages(items => [...items, { role: "user", text: `请分析 ${preview.data["报告日期"]} 的健康数据并生成报告（已确认发送预览数据到 DeepSeek）。`, report: true }]);
+    setMessages(items => [...items, { role: "user", text, report: true }]);
     try {
-      const result = await request<{ reply: string }>("/report", { method: "POST", body: JSON.stringify({ ...preview, consent: true }) });
+      let data: Record<string, unknown> | undefined;
+      if (isNativeIPhone()) {
+        if (!healthEnabled) throw new Error("请先在「我的 → 隐私与授权」开启 Apple 健康自动读取，再发送分析请求。");
+        const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+        const fresh = await readAppleHealth(false, today);
+        setNativeSummary(fresh);
+        data = {
+          "报告日期": fresh.dataDate, "来源": "手机 HealthKit 实时查询（不保证全天完整）",
+          "步数": fresh.steps == null ? null : Math.round(fresh.steps), "睡眠小时": fresh.sleepHours,
+          "睡眠统计开始": fresh.sleepStart, "睡眠统计结束": fresh.sleepEnd,
+          "平均心率（次/分，非静息）": fresh.heartRate, "饮水（mL，已记录）": fresh.waterMl,
+          "活动与目标": fresh.fitness, "环境噪音（dB(A)，最近一次）": fresh.noise,
+          "最近体重（kg）": fresh.weightKg, "体重测量日期": fresh.weightDate,
+          "当天训练（最多20条）": fresh.workouts.slice(0, 20), "读取提示": fresh.warnings || [],
+        };
+      }
+      const result = await request<{ reply: string }>("/report/analyze", { method: "POST", body: JSON.stringify({ message: text, data }) });
       setMessages(items => [...items, { role: "assistant", text: result.reply, report: true }]);
     } catch (error) {
-      setMessages(items => [...items, { role: "assistant", text: error instanceof Error ? error.message : "报告生成失败，请重新预览后重试。", error: true }]);
+      setMessages(items => [...items, { role: "assistant", text: error instanceof Error ? error.message : "健康分析失败，请重试。", error: true }]);
     } finally { setSending(false); }
   }
   async function send(text = input) {
-    if (!text.trim() || sending || reportLoading) return;
-    if (/分析.*(今天|今日).*健康|生成.*(今日|今天).*报告|今日健康报告/.test(text)) {
-      await previewReport();
+    if (!text.trim() || sending) return;
+    if (/(今天|今日|当天)/.test(text) && /(健康|身体|报告)/.test(text) && /(分析|报告|总结|评估|解读|建议|怎么样|如何)/.test(text) && !/(不要|不用|无需).{0,6}(分析|报告)/.test(text)) {
+      await analyzeToday(text.trim());
       return;
     }
     setInput("");
@@ -279,8 +276,8 @@ export default function App() {
             {tab === "chat" && (
               <ChatPage
                 messages={messages}
-                onAnalyze={() => void previewReport()}
-                reportLoading={reportLoading || sending}
+                onAnalyze={() => void analyzeToday("帮我分析今日健康数据，并给出健康报告")}
+                reportLoading={sending}
                 sending={sending}
                 bottomRef={bottomRef}
               />
@@ -384,18 +381,6 @@ export default function App() {
           >
             <X size={20} />
           </button>
-          {modal === "health-report" && reportPreview && (
-            <>
-              <h3>确认分析今日健康数据</h3>
-              <p>以下数据将发送到 DeepSeek，用于生成今日报告。仅发送此预览，不附带姓名、完整历史或其他聊天记录。</p>
-              <dl className="report-preview">
-                {Object.entries(reportPreview.data).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value == null ? "暂无记录" : typeof value === "object" ? JSON.stringify(value) : String(value)}</dd></div>)}
-              </dl>
-              <p>报告仅供健康管理参考。报告不会自动附带到后续普通聊天中。</p>
-              <button className="wide-button" disabled={sending} onClick={() => void generateReport()}>确认发送到 DeepSeek 并生成报告</button>
-              <button className="wide-button" onClick={() => { setModal(""); setReportPreview(null); }}>取消</button>
-            </>
-          )}
           {modal === "weight" && (
             <>
               <IconBubble icon={Weight} color="mint" />
@@ -488,7 +473,7 @@ export default function App() {
               <p>关闭会停止自动读取并清除当前内存中的健康数据，不会撤销系统权限。撤销权限请到 iPhone「健康」的应用授权设置。</p>
               {!isNativeIPhone() && <p>Apple 健康连接仅支持安装到 iPhone 的 App。</p>}
               {healthError && <p className="health-error" role="alert">{healthError}</p>}
-              <p>仅连接偏好保存在本机，健康数据不自动上传；AI 对话发送聊天文字，健康报告需确认后才将预览数据发送到 DeepSeek。</p>
+              <p>仅连接偏好保存在本机，健康数据不自动上传；AI 对话发送聊天文字，发送今日健康分析请求时，会自动读取当天健康摘要并发送到 DeepSeek 生成报告。</p>
             </>
           )}
           {modal === "help" && (

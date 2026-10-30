@@ -118,7 +118,7 @@ export function ChatComposer({
           )}
         </button>
       </form>
-      <div className="ai-notice">{aiReady ? "DeepSeek 对话 · 不提供诊断" : "AI 待配置 · 请在后端设置 API Key"} · 仅发送聊天文字</div>
+      <div className="ai-notice">{aiReady ? "DeepSeek 对话 · 不提供诊断" : "AI 待配置 · 请在后端设置 API Key"} · 健康分析请求会发送当天健康摘要</div>
     </>
   );
 }

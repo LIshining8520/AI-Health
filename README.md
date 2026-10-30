@@ -126,10 +126,20 @@ backend/.venv/bin/python backend/import_apple_health.py /绝对路径/导出.xml
 
 ### 今日健康报告
 
-在对话页点击「分析今日健康 · 生成报告」，或输入「分析今天的健康数据」。预览仅从上海时区今天的数据构建；确认后才发送到 DeepSeek。包含今日指标、已手动记录饮水和带日期的最近体重参考，不附带姓名、完整历史或聊天记录。预览签名保证发送数据与确认数据一致；服务重启或跨日后须重新预览。报告在对话中显示，但默认不纳入后续普通聊天上下文。未配置密钥时会明确提示。
+在对话中发送「帮我分析今日健康数据」「今天健康情况怎么样」等文案，或点击分析入口，会直接读取今天的数据并返回健康报告，无需先生成报告或再次确认。界面说明会将今日健康摘要发送到 DeepSeek。
+
+电脑端读取上海时区今天的本地导入及手动记录；手机端在已开启 Apple 健康连接后实时刷新今天的 HealthKit 数据，通过带访问令牌的局域网接口分析，不会混用 Mac 的健康数据。摘要不包含姓名或完整健康历史，历史体重保留测量日期；报告默认不加入后续普通聊天上下文。无权限、读取失败或模型错误会直接显示提示。
 
 ### iPhone 同 Wi-Fi 聊天测试
 
 双击项目根目录 `启动手机聊天.command`，在 Mac 当前 Wi-Fi 地址的 8001 端口运行独立的聊天网关。手机与 Mac 同网，首次运行需允许本地网络访问。该服务仅提供 `/api/chat` 和 `/api/ai/status`，要求专用随机访问令牌，不开放健康数据接口；DeepSeek 密钥仍只在 Mac 后端。
 
-手机版地址和测试访问令牌位于已忽略的 `frontend/.env.ios.local`，通过 `npm run ios:sync` 打包。Mac 的 Wi-Fi IP 变化后需更新地址并重新安装。当前为局域网 HTTP 测试，勿端口转发或用于公网；正式部署需 HTTPS。Mac 需保持运行。手机版今日健康报告尚未通过此网关开放，普通聊天不附带 HealthKit 数据。
+手机版地址和测试访问令牌位于已忽略的 `frontend/.env.ios.local`，通过 `npm run ios:sync` 打包。Mac 的 Wi-Fi IP 变化后需更新地址并重新安装。当前为局域网 HTTP 测试，勿端口转发或用于公网；正式部署需 HTTPS。Mac 需保持运行。手机版健康分析通过 `/api/report/analyze` 提交当前手机的今日摘要；普通聊天不自动附带 HealthKit 数据。
+
+## Vercel 云端测试部署
+
+当前后端地址：`https://zhikang-health-api.vercel.app`。项目入口为 `backend/app.py`，仅暴露带 Bearer 令牌的聊天、模型状态和手机健康摘要分析接口，不开放 SQLite、健康导入或电脑端数据接口。部署根目录为 `backend`。
+
+在 Vercel Production 环境配置 `DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`、`LAN_CHAT_TOKEN`（当前测试客户端访问令牌）。本地 `.env`、`.env.local`、`data`、虚拟环境和测试文件通过 `.vercelignore` 排除。不要上传包含密钥的构建产物。该版本用于个人手机测试，共享客户端令牌不等于多用户登录系统。
+
+手机通过已忽略的 `frontend/.env.ios.local` 设置 HTTPS 地址和对应测试访问令牌，再运行 `npm run ios:sync` 打包。普通聊天仅发送对话文字；用户请求今日健康分析时提交手机当天摘要。后端不保存健康摘要或聊天历史。云端上线后不再要求 Mac 常驻或同 Wi-Fi。

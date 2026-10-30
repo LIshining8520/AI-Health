@@ -30,3 +30,18 @@ class ReportTest(unittest.TestCase):
                     self.assertNotIn('records', generate.call_args.args[0])
         finally:
             main.DB_PATH = original
+
+    def test_direct_analysis_uses_today_without_preview_confirmation(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        today = datetime.now(ZoneInfo('Asia/Shanghai')).date().isoformat()
+        with patch('ai_chat.generate', new_callable=AsyncMock) as generate:
+            generate.return_value = {'reply': '今日分析', 'mode': 'ai'}
+            client = TestClient(main.app)
+            result = client.post('/api/report/analyze', json={'message': '帮我分析今日健康数据', 'data': {'报告日期': today, '步数': 1234}})
+            self.assertEqual(result.status_code, 200)
+            self.assertIn('1234', generate.call_args.args[0])
+            self.assertTrue(generate.call_args.kwargs['report'])
+            generate.reset_mock()
+            self.assertEqual(client.post('/api/report/analyze', json={'message': '分析', 'data': {'报告日期': '2000-01-01'}}).status_code, 409)
+            generate.assert_not_called()

@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from main import ChatInput, chat, ai_status
+from main import DirectReportInput, chat, ai_status
 
 
 def access_token():
@@ -35,3 +35,9 @@ async def authorize(request: Request, call_next):
 app.add_middleware(CORSMiddleware, allow_origins=['capacitor://localhost'], allow_methods=['GET', 'POST'], allow_headers=['Authorization', 'Content-Type'])
 app.add_api_route('/api/chat', chat, methods=['POST'])
 app.add_api_route('/api/ai/status', ai_status, methods=['GET'])
+
+
+@app.post('/api/report/analyze')
+async def phone_report(payload: DirectReportInput):
+    from main import analyze_today
+    return await analyze_today(payload, require_device_data=True)

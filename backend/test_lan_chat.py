@@ -16,3 +16,8 @@ class LanGatewayTest(unittest.TestCase):
             for path in ('/api/dashboard', '/api/apple-health', '/api/report/preview', '/docs'):
                 self.assertEqual(client.get(path, headers=headers).status_code, 404)
             self.assertEqual(client.options('/api/chat', headers={'Origin': 'capacitor://localhost', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type'}).status_code, 200)
+
+    def test_phone_analysis_requires_phone_summary(self):
+        with patch('lan_chat.access_token', return_value='test-only'):
+            result = TestClient(app).post('/api/report/analyze', headers={'Authorization': 'Bearer test-only'}, json={'message': '分析今天健康'})
+            self.assertEqual(result.status_code, 422)

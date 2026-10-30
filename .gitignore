@@ -13,3 +13,5 @@ frontend/android/
 
 # Local design reference, not required to build the app
 /design/ui-reference.png
+
+.vercel/
