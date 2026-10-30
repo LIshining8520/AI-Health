@@ -1,0 +1,158 @@
+/* Figma Make reference: warm surfaces, lavender accents, responsive panels. */
+.studio:has(.reference-chat), .studio:has(:is(.reference-health, .reference-mine)) { background:#f1efeb; color:#272234; gap:0; padding:32px; }
+.studio:has(.reference-chat) .studio-note, .studio:has(:is(.reference-health, .reference-mine)) .studio-note,
+.studio:has(.reference-chat) .preview-note, .studio:has(:is(.reference-health, .reference-mine)) .preview-note { display:none; }
+.phone-shell:has(.reference-chat), .phone-shell:has(:is(.reference-health, .reference-mine)) { width:min(1280px,100%); height:calc(100dvh - 64px); min-height:600px; padding:0; border:1px solid #ffffff; border-radius:32px; background:#fbfaf8; box-shadow:0 24px 80px #352b441f; }
+.reference-chat, :is(.reference-health, .reference-mine) { background:#f9f8f6; border-radius:32px; color:#272234; }
+.reference-chat .app-topline, :is(.reference-health, .reference-mine) .app-topline { padding:18px 30px; color:#817b8d; border-bottom:1px solid #eae6eb; }
+.reference-chat .page-content { padding:0; background:#f8f7f5; }
+:is(.reference-health, .reference-mine) .page-content { padding:12px 36px 30px; }
+.reference-chat .chat-topbar { min-height:88px; padding:18px 30px; border-bottom:1px solid #eae6eb; background:#ffffffbf; }
+.therapist-identity { display:flex; align-items:center; gap:12px; margin-right:auto; }
+.therapist-avatar { position:relative; width:45px; height:45px; display:grid; place-items:center; border-radius:15px; color:#5f4d8e; background:#e9e2f5; }
+.therapist-avatar i { position:absolute; right:-1px; bottom:-1px; width:11px; height:11px; border:3px solid white; border-radius:50%; background:#78a087; }
+.chat-title { font-size:17px; font-weight:700; }
+.chat-status { margin-top:4px; display:flex; align-items:center; gap:5px; color:#817b8d; font-size:11px; }
+.chat-status span { width:5px; height:5px; border-radius:50%; background:#78a087; }
+.report-pill { display:flex; align-items:center; gap:6px; padding:8px 12px; border-radius:99px; color:#68786e; background:#edf3ef; font-size:11px; }
+.reference-chat .round-icon { border:1px solid #eae6eb; border-radius:11px; background:white; color:#817b8d; }
+.reference-chat-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; min-height:calc(100% - 88px); }
+.reference-chat .conversation { width:100%; max-width:800px; margin:0 auto; padding:24px 34px; }
+.chat-date { margin:0 0 20px; display:flex; align-items:center; gap:12px; color:#a09aa4; font-size:10px; }
+.chat-date::before,.chat-date::after { content:''; height:1px; flex:1; background:#eae6eb; }
+.session-intro { margin-bottom:25px; padding:15px 17px; display:flex; align-items:flex-start; gap:12px; border:1px solid #e2dbea; border-radius:15px; background:#f1edf6; }
+.intro-spark { display:grid; place-items:center; flex:0 0 33px; height:33px; border-radius:10px; color:#5f4d8e; background:white; }
+.session-intro p { font-size:13px; font-weight:700; }
+.session-intro span:not(.intro-spark) { display:block; margin-top:5px; color:#817b8d; font-size:11px; line-height:1.6; }
+.reference-chat .message { margin:17px 0; align-items:flex-start; }
+.reference-chat .message-bubble { padding:14px 16px; border:1px solid #eae6eb; border-radius:16px 16px 16px 5px; color:#272234; background:white; box-shadow:0 5px 18px #342b410a; font-size:13px; line-height:1.75; }
+.reference-chat .message.user .message-bubble { color:#f7f3fb; border-color:transparent; border-radius:16px 16px 5px 16px; background:#3f3268; }
+.reference-chat .ai-avatar { border-radius:9px; color:#5f4d8e; background:#e9e2f5; }
+.reference-chat .user-avatar { background:#e5d7cb; color:#5f5368; }
+.session-sidebar { padding:27px 24px; display:flex; flex-direction:column; border-left:1px solid #eae6eb; background:#ffffffb8; }
+.session-side-header { display:flex; align-items:center; justify-content:space-between; color:#5f4d8e; font-size:11px; letter-spacing:1px; }
+.session-sidebar h3 { margin:24px 0 0; font-size:24px; line-height:1.4; }.session-sidebar > p { margin-top:12px; color:#817b8d; font-size:12px; line-height:1.8; }
+.session-focus { margin-top:24px; padding:15px; display:flex; align-items:center; gap:12px; border:1px solid #eae6eb; border-radius:15px; background:white; color:#5f4d8e; }
+.session-focus small { display:block; margin-top:6px; color:#9d97a1; font-size:10px; line-height:1.6; }
+.session-topics { margin-top:24px; font-size:11px; color:#98919c; }.session-topics > div { margin-top:12px; display:flex; gap:6px; flex-wrap:wrap; }.session-topics i { padding:7px 10px; border-radius:99px; background:#f0ebf4; color:#766987; font-style:normal; }
+.session-divider { margin:24px 0; height:1px; background:#eae6eb; }.session-sidebar > strong { font-size:13px; }
+.end-session-button { margin-top:30px; padding:12px; border:1px solid #eae6eb; border-radius:11px; color:#817b8d; background:white; font-size:12px; }
+.reference-chat .bottom-dock,:is(.reference-health, .reference-mine) .bottom-dock { background:#fbfaf8; border-top:1px solid #eae6eb; }
+.reference-chat .composer { padding:0 30px; }.reference-chat .composer-card { display:flex; align-items:center; gap:8px; padding:9px; border:1px solid #dcd6df; border-radius:16px; background:white; box-shadow:0 10px 30px #30263b14; }.reference-chat .composer-input { padding:8px; flex:1; min-width:0; font-size:13px; }.reference-chat .composer-row { padding:0; gap:8px; }.reference-chat .composer-chip,.reference-chat .composer-spacer { display:none; }
+.reference-chat .send-button { background:#3f3268; border-radius:10px; color:white; }.reference-chat .composer-plus,.reference-chat .composer-ghost { color:#817b8d; }.reference-chat .ai-notice { color:#aaa4ad; margin:10px 20px; }
+.suggested-prompts { padding:12px 30px; display:flex; gap:7px; overflow:auto; }.suggested-prompts button { padding:8px 12px; flex:0 0 auto; border:1px solid #dfd9e4; border-radius:99px; color:#756a80; background:#ffffffb3; font-size:11px; }
+.reference-chat .bottom-nav,:is(.reference-health, .reference-mine) .bottom-nav { max-width:520px; margin:auto; border:0; }.reference-chat .bottom-nav button,:is(.reference-health, .reference-mine) .bottom-nav button { color:#8b8592; }.reference-chat .bottom-nav button.active,:is(.reference-health, .reference-mine) .bottom-nav button.active { color:#5f4d8e; background:#e9e2f5; border-radius:13px; }
+.health-eyebrow { display:block; margin-bottom:8px; color:#9a949f; font-size:10px; letter-spacing:1.5px; }:is(.reference-health, .reference-mine) .page-header p { color:#817b8d; }:is(.reference-health, .reference-mine) .header-spark { color:#5f4d8e; background:#e9e2f5; border-radius:15px; }
+:is(.reference-health, .reference-mine) .card { border:1px solid #eae6eb; background:#fff; box-shadow:none; border-radius:18px; }:is(.reference-health, .reference-mine) .metric-card { padding:20px; background:#fcfbfa; }:is(.reference-health, .reference-mine) .metric-value { color:#272234; }:is(.reference-health, .reference-mine) .metric-hint,:is(.reference-health, .reference-mine) .apple-health-meta,:is(.reference-health, .reference-mine) .chart-caption,:is(.reference-health, .reference-mine) .demo-section-label { color:#817b8d; }:is(.reference-health, .reference-mine) .icon-bubble { color:#7d6688; background:#f0e8f2; }:is(.reference-health, .reference-mine) .segmented { background:#f1edf6; }:is(.reference-health, .reference-mine) .segmented .active { color:#5f4d8e; background:white; }:is(.reference-health, .reference-mine) .text-button { color:#5f4d8e; }:is(.reference-health, .reference-mine) .subtle-button { color:#5f4d8e; background:#e9e2f5; }:is(.reference-health, .reference-mine) .water-bars .filled { background:#8ab4c6; }
+@media(min-width:900px) { :is(.reference-health, .reference-mine) .activity-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }:is(.reference-health, .reference-mine) .metric-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }:is(.reference-health, .reference-mine) .heart-noise-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.reference-chat .bottom-dock { padding-right:260px; position:relative; }.reference-chat .bottom-nav { margin-top:10px; }:is(.reference-health, .reference-mine) .trend-card { margin-top:20px; } }
+@media(max-width:899px) { .reference-chat-layout { display:block; }.session-sidebar { display:none; }.studio:has(.reference-chat),.studio:has(:is(.reference-health, .reference-mine)) { padding:0; }.phone-shell:has(.reference-chat),.phone-shell:has(:is(.reference-health, .reference-mine)) { width:100%; height:100dvh; min-height:0; border:0; border-radius:0; }.reference-chat,:is(.reference-health, .reference-mine) { border-radius:0; }.reference-chat .chat-topbar { padding:16px 18px; min-height:75px; }.reference-chat .conversation { padding:20px 16px; }:is(.reference-health, .reference-mine) .page-content { padding:10px 16px 24px; }.reference-chat .composer { padding:0 16px; }.suggested-prompts { padding:10px 16px; }.report-pill { padding:7px 9px; font-size:10px; }.reference-chat .composer-ghost { display:none; } }
+.reference-chat .composer-card { flex-direction:row; }
+.reference-chat .composer-input { width:0; font-size:16px; }
+.reference-chat .composer-row { width:auto; flex-shrink:0; }
+.reference-chat .conversation { justify-content:flex-start; gap:0; }
+.reference-chat .bottom-nav,:is(.reference-health, .reference-mine) .bottom-nav { background:transparent; box-shadow:none; border-radius:0; }
+.reference-chat .home-indicator,:is(.reference-health, .reference-mine) .home-indicator { background:#aaa4ad; }
+:is(.reference-health, .reference-mine) .date.active { background:#5f4d8e; }
+:is(.reference-health, .reference-mine) .date.active span { color:#e9e2f5; }
+
+/* Profile follows the same Figma palette and surface hierarchy. */
+.reference-mine .page-content { padding:12px 36px 30px; }
+.reference-mine .profile-card { position:relative; padding:28px; gap:20px; border-color:#ddd3e8; background:linear-gradient(125deg,#f1edf6,#e9e2f5); border-radius:24px; }
+.reference-mine .profile-avatar { flex:0 0 68px; width:68px; height:68px; border:4px solid #ffffffb3; color:#5f4d8e; background:#d8cce9; }
+.reference-mine .profile-card strong { font-size:23px; font-weight:700; }
+.reference-mine .profile-card small { color:#817b8d; font-size:12px; }
+.reference-mine .profile-card > svg { color:#8a7c9d; }
+.profile-edit-label { display:inline-block; margin-top:12px; color:#5f4d8e; font-size:11px; font-weight:500; }
+.mine-section-label { margin:27px 0 12px; color:#98919c; font-size:10px; letter-spacing:1.5px; font-weight:600; }
+.reference-mine .summary-card { margin-top:16px; padding:24px; border-radius:18px; }
+.reference-mine .summary-card svg { color:#8d79aa; }
+.reference-mine .summary-card span { color:#817b8d; font-size:11px; }
+.reference-mine .summary-card b { color:#3f3268; font-size:28px; }
+.reference-mine .summary-card .summary-text { font-size:18px; }
+.reference-mine .summary-card > div + div { border-color:#eae6eb; }
+.reference-mine .settings-card { margin-top:0; padding:6px 22px; border-radius:20px; }
+.reference-mine .settings-card button { padding:18px 0; gap:14px; }
+.reference-mine .settings-card button + button { border-color:#eeeaf1; }
+.setting-icon { display:grid; place-items:center; flex:0 0 38px; height:38px; border-radius:12px; color:#7d6688; background:#f0e8f2; }
+.reference-mine .settings-card button:nth-child(2) .setting-icon { color:#84674f; background:#f3ebe2; }
+.reference-mine .settings-card button:nth-child(3) .setting-icon { color:#51766d; background:#e4f0ec; }
+.reference-mine .settings-card button:nth-child(4) .setting-icon { color:#4f7d93; background:#e4f1f5; }
+.reference-mine .settings-card button > span:not(.setting-icon) { font-size:13px; }
+.reference-mine .settings-card button svg:last-child { color:#a39baa; }
+.reference-mine .privacy-note { color:#8b7c9d; margin-top:24px; font-size:11px; }
+.reference-mine .version { color:#aaa4ad; font-size:9px; }
+.studio:has(.reference-mine) .modal { color:#272234; background:#fbfaf8; border:1px solid #eae6eb; border-radius:24px; }
+.studio:has(.reference-mine) .wide-button { background:#5f4d8e; color:white; }
+.studio:has(.reference-mine) .form-input { background:white; border-color:#ddd3e8; color:#272234; }
+.studio:has(.reference-mine) .avatar-upload-button { background:#e9e2f5; color:#5f4d8e; }
+@media(min-width:900px) { .reference-mine .page-content { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(0,1.3fr); grid-template-rows:auto; column-gap:28px; align-content:start; }.reference-mine .page-header { grid-column:1/-1; }.mine-profile-column { padding-top:0; }.mine-settings-column .mine-section-label { margin-top:0; } }
+@media(max-width:899px) { .reference-mine .page-content { padding:10px 16px 24px; }.reference-mine .profile-card { padding:24px 20px; }.reference-mine .summary-card { padding:22px 16px; } }
+.reference-mine .settings-card button .setting-icon { flex:0 0 38px; }
+
+/* Trend charts: lavender series, quiet grids and clear measurement hierarchy. */
+.reference-health .trend-card { padding:24px; border:1px solid #eae6eb; border-radius:22px; background:#fff; }
+.reference-health .trend-card .card-heading { padding-bottom:16px; border-bottom:1px solid #f0ecf3; }
+.reference-health .trend-card .card-heading > span:first-child { color:#3f3268; font-size:14px; gap:10px; }
+.reference-health .trend-card .card-heading > span:first-child > svg { padding:6px; box-sizing:content-box; border-radius:11px; color:#7b68a7; background:#f1edf6; }
+.reference-health .trend-unit { color:#a39aaa; font-size:10px; font-weight:400; }
+.trend-summary { margin-top:20px; display:flex; justify-content:space-between; align-items:center; gap:14px; }
+.trend-summary > div > span { display:block; color:#98919c; font-size:11px; }
+.trend-summary strong { display:block; margin-top:6px; color:#3f3268; font-size:32px; font-weight:600; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+.trend-summary strong small { margin-left:6px; color:#98919c; font-size:12px; letter-spacing:0; }
+.trend-record-count { color:#8c7ba4; background:#f5f1f9; padding:7px 10px; border-radius:99px; font-size:10px; }
+.reference-health .trend-chart { max-width:640px; height:auto; aspect-ratio:320 / 140; margin:22px auto 0; gap:6px; }
+.reference-health .trend-chart svg { min-width:0; flex:1; height:100%; }
+.reference-health .y-labels { color:#a39aaa; font-size:10px; font-variant-numeric:tabular-nums; padding:6.8% 0 8.5%; flex:0 0 28px; }
+.reference-health .grid-line { stroke:#ece7f1; stroke-dasharray:3 5; stroke-width:.7; }
+.reference-health .trend-card .chart-labels { max-width:640px; margin:0 auto; padding:0 28px 0 48px; color:#a39aaa; font-size:10px; }
+.reference-health .trend-card .chart-caption { color:#a39aaa; line-height:1.7; font-size:10px; margin-top:8px; }
+.reference-health .trend-card .chart-caption[role="status"] { display:block; padding:10px 12px; margin-top:18px; border-radius:11px; background:#f6f3f9; color:#7b68a7; font-size:11px; }
+.reference-health .trend-card .segmented { border-radius:11px; background:#f1edf6; }
+.reference-health .trend-card .segmented button { border-radius:8px; padding:7px 14px; color:#9b90a7; }
+.reference-health .trend-card .segmented button.active { background:white; color:#5f4d8e; box-shadow:0 2px 7px #3f32680d; }
+.reference-health .trend-card .health-empty { padding:32px 20px; margin-top:18px; border:1px dashed #e2dbea; border-radius:15px; background:#faf8fc; color:#98919c; font-size:12px; line-height:1.8; text-align:center; }
+.reference-health .weight-trend-node:focus-visible { outline-color:#7b68a7; }
+@media(max-width:600px) { .reference-health .trend-card { padding:20px 16px; }.trend-summary strong { font-size:29px; }.trend-record-count { font-size:9px; }.reference-health .trend-card .chart-caption { font-size:9px; } }
+
+.reference-health .water-card { background:#faf8fd; border-color:#e4dced; }
+.reference-health .water-card .icon-bubble { color:#8a75aa; background:#eee7f6; }
+.reference-health .water-card .metric-value { color:#3f3268; }
+.reference-health .water-card .metric-value small { color:#8c7ba4; }
+.reference-health .water-card .water-bars { background:#f0eaf7; }
+.reference-health .water-card .water-bars i { background:#d9cce9; }
+.reference-health .water-card .water-bars i.filled { background:#9d85bf; }
+.reference-health .water-card .subtle-button { color:#66508e; background:#e9e0f4; }
+
+.health-onboarding .health-eyebrow { margin-top:20px; color:#9b8bae; }
+.health-onboarding h3 { color:#3f3268; }
+.health-onboarding ol { padding-left:20px; color:#817b8d; font-size:12px; line-height:2; margin:18px 0; }
+.health-onboarding .wide-button { background:#5f4d8e; color:white; }
+.onboarding-later { display:block; width:100%; margin-top:12px; padding:10px; color:#98919c; font-size:12px; }
+/* Shared overlays across every app page. */
+.studio dialog { color:#272234; background:#fbf9fd; border:1px solid #e4dced; border-radius:24px; box-shadow:0 25px 80px #3f326829; }
+.studio dialog::backdrop { background:#30243f55; backdrop-filter:blur(5px); }
+.studio .modal-content h3 { color:#3f3268; }
+.studio .modal-content p { color:#817b8d; }
+.studio .modal-content .icon-bubble { color:#7d6688; background:#eee7f6; }
+.studio .modal-content .close-button { color:#8c7ba4; background:#f0eaf7; }
+.studio .modal-content .wide-button { color:white; background:#5f4d8e; }
+.studio .modal-content .form-input { color:#3f3268; border-color:#ddd3e8; background:white; }
+.studio .modal-content .form-input:focus,.studio .modal-content .form-input:focus-visible { border-color:#9d85bf; outline-color:#b8a4d6; box-shadow:0 0 0 3px #b8a4d626; }
+.studio .modal-content label,.studio .modal-content .toggle-row { color:#665879; }
+.studio .modal-content .toggle { background:#ded5e9; }
+.studio .modal-content .toggle.on { background:#9276b5; }
+.studio .modal-content .prompt-button { color:#66508e; background:#f0eaf7; }
+.studio .modal-content .avatar-upload-button { color:#66508e; background:#e9e0f4; }
+.studio .modal-content .avatar-remove-button { color:#8c6b83; background:#f3eaf1; }
+.studio .modal-content .health-error { color:#a34f71; }
+.studio .toast { color:#4d3b6b; background:#eee6f8; border:1px solid #dacbe9; border-radius:16px; box-shadow:0 10px 35px #5f4d8e24; white-space:normal; overflow-wrap:anywhere; line-height:1.6; width:max-content; max-width:min(90vw,480px); }
+.studio .toast svg { color:#8a70aa; flex-shrink:0; }
+.studio button:focus-visible { outline-color:#b8a4d6; }
+.studio .modal-content .close-button,
+.studio .modal-content .close-button:focus,
+.studio .modal-content .close-button:focus-visible,
+.studio .modal-content .close-button:active {
+  border:0;
+  outline:none;
+  box-shadow:none;
+}

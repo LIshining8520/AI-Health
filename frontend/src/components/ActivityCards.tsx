@@ -39,13 +39,7 @@ export default function ActivityCards({ dashboard }: { dashboard: Dashboard | nu
         <div className="activity-stat"><span><ArrowUp size={14} />站立</span><b>{amount(fitness?.standHours)}<small>小时</small></b></div>
         <Rings values={[progress(fitness?.activeKcal, fitness?.activeGoal), progress(fitness?.exerciseMinutes, fitness?.exerciseGoal), progress(fitness?.standHours, fitness?.standGoal)]} colors={['#ff768f', '#ffac74', '#80c2ff']} label="活动、锻炼、站立目标完成进度，圆环最多显示一圈" />
       </div>
-      <div className="fitness-goals" aria-label="健身圆环目标">
-        <span style={{ color: '#df566f' }}>外圈·活动目标 {fitness?.activeGoal != null && fitness.activeGoal > 0 ? `${amount(fitness.activeGoal)} 千卡` : '未读取到'}</span>
-        <span style={{ color: '#b76b32' }}>中圈·锻炼目标 {fitness?.exerciseGoal != null && fitness.exerciseGoal > 0 ? `${amount(fitness.exerciseGoal)} 分钟` : '未读取到'}</span>
-        <span style={{ color: '#4187b8' }}>内圈·站立目标 {fitness?.standGoal != null && fitness.standGoal > 0 ? `${amount(fitness.standGoal)} 小时` : '未读取到'}</span>
-      </div>
       {fitness?.goalDate && fitness.goalDate !== fitness.date && <p className="activity-note">目标沿用 {fitness.goalDate} 的健身记录</p>}
-      <p className="activity-note">{fitness ? `${fitness.date} · Apple 健康 · ${fitness.source || "当日活动汇总"}` : '暂无健身记录'} · 有目标记录时显示圆环进度</p>
     </section>
     <section className="card activity-summary">
       <div className="activity-heading"><Dumbbell size={20} /><h3>体能训练</h3></div>

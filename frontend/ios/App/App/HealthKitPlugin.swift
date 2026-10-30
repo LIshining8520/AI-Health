@@ -9,6 +9,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestReadAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addWater", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "addWeight", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "readSummary", returnType: CAPPluginReturnPromise)
     ]
     private let store = HKHealthStore()
@@ -35,7 +36,7 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         store.requestAuthorization(toShare: [type], read: [type]) { completed, error in
             guard completed, self.store.authorizationStatus(for: type) == .sharingAuthorized else {
-                call.reject("未允许写入饮水，请在「健康」中开启知康的饮水写入权限。", "WRITE_DENIED", error)
+                call.reject("未允许写入饮水，请在「健康」中开启冷酸宁的饮水写入权限。", "WRITE_DENIED", error)
                 return
             }
             let now = Date()
@@ -43,6 +44,31 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
             self.store.save(sample) { saved, error in
                 if saved { call.resolve(["saved": true]) }
                 else { call.reject("饮水保存失败：" + (error?.localizedDescription ?? "请重试"), "SAVE_FAILED", error) }
+            }
+        }
+    }
+
+    @objc func addWeight(_ call: CAPPluginCall) {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            call.reject("此设备不支持 Apple 健康", "UNAVAILABLE")
+            return
+        }
+        guard let kilograms = call.getDouble("kilograms"), kilograms.isFinite,
+              kilograms >= 1, kilograms <= 500,
+              let type = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
+            call.reject("体重须在 1–500 kg 之间", "INVALID_AMOUNT")
+            return
+        }
+        store.requestAuthorization(toShare: [type], read: [type]) { completed, error in
+            guard completed, self.store.authorizationStatus(for: type) == .sharingAuthorized else {
+                call.reject("未允许写入体重，请在「健康」中开启冷酸宁的体重写入权限。", "WRITE_DENIED", error)
+                return
+            }
+            let now = Date()
+            let sample = HKQuantitySample(type: type, quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kilograms), start: now, end: now)
+            self.store.save(sample) { saved, error in
+                if saved { call.resolve(["saved": true]) }
+                else { call.reject("体重保存失败：" + (error?.localizedDescription ?? "请重试"), "SAVE_FAILED", error) }
             }
         }
     }

@@ -8,12 +8,15 @@ import {
   MessageCircle,
   ShieldCheck,
   Sparkles,
+  Trash2,
+  Upload,
   UserRound,
   Weight,
   X,
 } from "lucide-react";
 import type { AppleHealthSummary } from "./apple-health";
-import { addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
+import { hasReadableHealthData, addAppleHealthWeight, addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
+import { clearStoredAvatar, prepareAvatar, readStoredAvatar, storeAvatar } from "./avatar";
 import IconBubble from "./components/IconBubble";
 import ChatPage, { ChatComposer } from "./pages/ChatPage";
 import HealthPage from "./pages/HealthPage";
@@ -22,7 +25,7 @@ import type { Dashboard, Message } from "./types";
 
 type Tab = "chat" | "health" | "mine";
 const initialMessages: Message[] = [
-  { role: "assistant", text: "你好，我是知康。可以和我聊聊健康习惯或一般健康问题。对话会发送到 DeepSeek。发送“分析今日健康数据”时，会自动读取当天健康摘要并交给 DeepSeek 分析。" },
+  { role: "assistant", text: "你好，我是冷酸宁。可以和我聊聊健康习惯或一般健康问题。对话会发送到 AI 智能小助手。发送“分析今日健康数据”时，会自动读取当天健康摘要并交给 AI 智能小助手 分析。" },
 ];
 const API = (isNativeIPhone() ? import.meta.env.VITE_MOBILE_API_BASE_URL : "") || import.meta.env.VITE_API_BASE_URL || "";
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -53,7 +56,7 @@ export default function App() {
     "loading",
   );
   const [toast, setToast] = useState("");
-  const [modal, setModal] = useState("");
+  const [modal, setModal] = useState(() => isNativeIPhone() && localStorage.getItem("zhikang-health-enabled") !== "true" ? "health-onboarding" : "");
   const [value, setValue] = useState("62.0");
   const [saving, setSaving] = useState(false);
   const [reminder, setReminder] = useState(
@@ -63,6 +66,9 @@ export default function App() {
     localStorage.getItem("zhikang-name") || "小林",
   );
   const [draftName, setDraftName] = useState(name);
+  const [avatar, setAvatar] = useState(readStoredAvatar);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -107,9 +113,13 @@ export default function App() {
       setHealthError("");
       try {
         const result = await readAppleHealth(false, healthDate);
-        if (active) { setNativeSummary(result); lastReadDate.current = healthDate; }
+        if (active) {
+          setNativeSummary(result); lastReadDate.current = healthDate;
+          const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+          if (healthDate === today && !hasReadableHealthData(result)) setModal("health-onboarding");
+        }
       } catch (error) {
-        if (active) { setNativeSummary(null); setHealthError(error instanceof Error ? error.message : "健康数据读取失败"); }
+        if (active) { setNativeSummary(null); setHealthError(error instanceof Error ? error.message : "健康数据读取失败"); setModal("health-onboarding"); }
       } finally { reading = false; if (active) setHealthBusy(false); }
     }
     const onVisible = () => { if (document.visibilityState === "visible") void refreshHealth(); };
@@ -118,6 +128,31 @@ export default function App() {
     window.addEventListener("focus", onVisible);
     return () => { active = false; document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onVisible); };
   }, [healthEnabled, healthDate]);
+  useEffect(() => {
+    if (!isNativeIPhone()) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !healthEnabled) setModal("health-onboarding");
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [healthEnabled]);
+  async function connectHealthFromGuide() {
+    if (healthBusy) return;
+    setHealthBusy(true);
+    setHealthError("");
+    try {
+      const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+      const result = await readAppleHealth(true, today);
+      setNativeSummary(result);
+      lastReadDate.current = today;
+      localStorage.setItem("zhikang-health-enabled", "true");
+      setHealthEnabled(true);
+      if (hasReadableHealthData(result)) setModal("");
+      else setHealthError("暂未读到健康数据，可能尚未授权或没有记录。请到「健康」App → 个人头像 → 隐私 → App → 冷酸宁，打开需要的数据读取开关，然后返回重试。");
+    } catch (error) {
+      setHealthError(error instanceof Error ? error.message : "健康连接失败，请检查系统授权后重试。");
+    } finally { setHealthBusy(false); }
+  }
   async function toggleHealth() {
     if (healthBusy) return;
     if (healthEnabled) {
@@ -202,18 +237,24 @@ export default function App() {
   }
   async function addRecord(kind: "water" | "weight", amount: number) {
     if (saving) return;
+    if (!Number.isFinite(amount) || (kind === "weight" ? amount < 1 || amount > 500 : amount <= 0 || amount > 5000)) {
+      setToast(kind === "weight" ? "体重须在 1–500 kg 之间" : "饮水量须在 0–5000 mL 之间");
+      return;
+    }
     setSaving(true);
     try {
-      if (isNativeIPhone() && kind === "water") {
-        await addAppleHealthWater(amount);
+      if (isNativeIPhone()) {
+        if (kind === "water") await addAppleHealthWater(amount);
+        else await addAppleHealthWeight(amount);
+        setModal("");
         try {
           const summary = await readAppleHealth(false, healthDate);
           setNativeSummary(summary);
           setHealthError("");
-          setToast(`已将 ${amount} mL 饮水保存到 Apple 健康`);
+          setToast(kind === "water" ? `已将 ${amount} mL 饮水保存到 Apple 健康` : `已将 ${amount} kg 体重保存到 Apple 健康`);
         } catch (error) {
           setHealthError(error instanceof Error ? error.message : "健康数据刷新失败");
-          setToast("饮水已保存，但数据刷新失败，请稍后重新读取，勿重复添加。");
+          setToast("记录已保存，但数据刷新失败，请稍后重新读取，勿重复添加。");
         }
         return;
       }
@@ -231,6 +272,25 @@ export default function App() {
       setSaving(false);
     }
   }
+  async function pickAvatar(file: File | undefined) {
+    if (!file || avatarBusy) return;
+    setAvatarBusy(true);
+    try {
+      const dataUrl = await prepareAvatar(file);
+      if (!storeAvatar(dataUrl)) throw new Error("本机存储空间不足，头像未能保存");
+      setAvatar(dataUrl);
+      setToast("头像已更新");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "头像处理失败，请重试");
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+  function removeAvatar() {
+    clearStoredAvatar();
+    setAvatar("");
+    setToast("头像已移除");
+  }
   function exportData() {
     if (!dashboard) {
       setToast("请先连接后端后再导出");
@@ -243,19 +303,19 @@ export default function App() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "知康-健康记录.json";
+    link.download = "冷酸宁-健康记录.json";
     link.click();
     URL.revokeObjectURL(url);
     setToast("健康记录已导出");
   }
-  const weight = dashboard?.weight ?? 62;
+  const weight = (isNativeIPhone() ? nativeSummary?.weightKg : dashboard?.weight) ?? 62;
   return (
     <div className="studio">
       <aside className="studio-note">
         <div className="brand-mark">
           <Sparkles size={23} />
         </div>
-        <span className="eyebrow">ZHIKANG / WELLNESS COMPANION</span>
+        <span className="eyebrow">LENGSUANNING / WELLNESS COMPANION</span>
         <h1>
           把健康，
           <br />
@@ -267,16 +327,16 @@ export default function App() {
           到一个更了解自己的日常。
         </p>
         <div className="studio-divider" />
-        <span className="studio-caption">知康 · 你的 AI 健康助手</span>
+        <span className="studio-caption">冷酸宁 · 你的 AI 健康助手</span>
         <div className="demo-label">
           <span />
           本地演示 · 非医疗诊断服务
         </div>
       </aside>
       <main className="phone-shell">
-        <div className="mobile-app">
+        <div className={`mobile-app reference-${tab}`}>
           <div className="app-topline">
-            <span>知康 ZHIKANG</span>
+            <span>冷酸宁 LENGSUANNING</span>
             <span>
               <span className={`connection-dot ${connection}`} />
               {isNativeIPhone() ? "手机本地测试" : connection === "ready"
@@ -286,11 +346,16 @@ export default function App() {
                   : "离线预览"}
             </span>
           </div>
-          <div className={`page-content ${tab === "chat" ? "chat-page" : ""}`}>
+          <div className={`page-content ${tab === "chat" ? "chat-page" : tab === "health" ? "health-page" : ""}`}>
             {tab === "chat" && (
               <ChatPage
                 messages={messages}
+                avatar={avatar}
                 onAnalyze={() => void analyzeToday("帮我分析今日健康数据，并给出健康报告")}
+                onNewChat={() => {
+                  setMessages([...initialMessages]);
+                  setInput("");
+                }}
                 reportLoading={sending}
                 sending={sending}
                 bottomRef={bottomRef}
@@ -316,6 +381,7 @@ export default function App() {
             {tab === "mine" && (
               <MinePage
                 name={name}
+                avatar={avatar}
                 recordCount={dashboard?.records.length ?? 0}
                 onOpenProfile={() => {
                   setDraftName(name);
@@ -334,6 +400,7 @@ export default function App() {
                 sending={sending}
                 onInputChange={setInput}
                 onSend={() => void send()}
+                onAnalyze={() => void analyzeToday("帮我分析今日健康数据，并给出健康报告")}
                 onOpenPrompts={() => setModal("prompts")}
               />
             )}
@@ -395,6 +462,20 @@ export default function App() {
           >
             <X size={20} />
           </button>
+          {modal === "health-onboarding" && (
+            <div className="health-onboarding">
+              <IconBubble icon={ShieldCheck} />
+              <span className="health-eyebrow">CONNECT YOUR HEALTH</span>
+              <h3>让冷酸宁，更了解你</h3>
+              <p>连接 Apple 健康，查看睡眠、活动、心率与体重的变化。你可以逐项选择允许读取的数据。</p>
+              <ol><li>点击下方按钮，打开系统授权。</li><li>开启你希望分享的数据读取开关。</li><li>完成后返回 App，自动更新健康概览。</li></ol>
+              <p>若系统未再次弹窗，请到「健康」App → 个人头像 → 隐私 → App → 冷酸宁，检查并开启读取权限，再返回重试。没有健康记录时也可能显示为空。</p>
+              <p>健康数据不会自动上传；仅在你主动请求 AI 健康分析时，才发送当天摘要。</p>
+              {healthError && <p className="health-error" role="alert">{healthError}</p>}
+              <button className="wide-button" disabled={healthBusy} onClick={() => void connectHealthFromGuide()}>{healthBusy ? "正在连接…" : healthEnabled ? "重新检查健康数据" : "开启 Apple 健康授权"}</button>
+              <button className="onboarding-later" disabled={healthBusy} onClick={() => setModal("")}>稍后再说</button>
+            </div>
+          )}
           {modal === "weight" && (
             <>
               <IconBubble icon={Weight} color="mint" />
@@ -428,7 +509,52 @@ export default function App() {
             <>
               <IconBubble icon={UserRound} />
               <h3>健康档案</h3>
-              <p>先从一个亲切的称呼开始。</p>
+              <p>头像和称呼只保存在这台设备，用于对话中显示。</p>
+              <div className="avatar-editor">
+                <span className={`avatar-preview ${avatar ? "has-image" : ""}`}>
+                  {avatar ? (
+                    <img src={avatar} alt="当前头像" />
+                  ) : (
+                    <UserRound size={34} strokeWidth={1.3} />
+                  )}
+                </span>
+                <div className="avatar-actions">
+                  <div className="avatar-buttons">
+                    <button
+                      type="button"
+                      className="avatar-upload-button"
+                      disabled={avatarBusy}
+                      onClick={() => avatarInputRef.current?.click()}
+                    >
+                      <Upload size={15} strokeWidth={1.8} />
+                      {avatarBusy ? "处理中…" : avatar ? "更换头像" : "上传头像"}
+                    </button>
+                    {avatar && (
+                      <button
+                        type="button"
+                        className="avatar-remove-button"
+                        aria-label="移除头像"
+                        disabled={avatarBusy}
+                        onClick={removeAvatar}
+                      >
+                        <Trash2 size={15} strokeWidth={1.8} />
+                      </button>
+                    )}
+                  </div>
+                  <small>支持 JPG / PNG，会自动裁成方形并压缩。</small>
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  className="avatar-file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    void pickAvatar(file);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -437,7 +563,7 @@ export default function App() {
                     setName(n);
                     localStorage.setItem("zhikang-name", n);
                     setModal("");
-                    setToast("称呼已更新");
+                    setToast("档案已更新");
                   }
                 }}
               >
@@ -494,9 +620,9 @@ export default function App() {
           {modal === "help" && (
             <>
               <IconBubble icon={HelpCircle} />
-              <h3>关于知康</h3>
+              <h3>关于冷酸宁</h3>
               <p>
-                知康 v0.1.0 是 React H5 + FastAPI
+                冷酸宁 v0.1.0 是 React H5 + FastAPI
                 工程原型。聊天为固定规则演示，图表含示例数据。
               </p>
               <p>

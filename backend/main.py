@@ -12,7 +12,7 @@ from typing import Literal, Optional
 from fastapi import FastAPI
 from pydantic import BaseModel, Field, model_validator
 
-app = FastAPI(title="知康本地演示 API", version="0.1.0")
+app = FastAPI(title="冷酸宁本地演示 API", version="0.1.0")
 DB_PATH = Path(os.environ.get("ZHIKANG_DB_PATH", str(Path(__file__).parent / "data" / "health.sqlite3")))
 
 

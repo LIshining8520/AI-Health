@@ -24,7 +24,7 @@ async def generate(message, history, report=False):
     body = {
         'model': config['DEEPSEEK_MODEL'], 'max_tokens': 2200 if report else 1200, 'stream': False,
         'thinking': {'type': 'disabled'},
-        'messages': [{'role': 'system', 'content': '你是知康健康助手，使用简洁自然的中文交流，提供一般健康知识和生活习惯建议。你只能使用用户在消息中明确提供的健康数据，没有独立访问数据库的权限，不得编造用户记录。不要提供诊断、处方或调整用药的指令；遇到紧急症状应建议及时就医。'}]
+        'messages': [{'role': 'system', 'content': '你是冷酸宁健康助手，使用简洁自然的中文交流，提供一般健康知识和生活习惯建议。你只能使用用户在消息中明确提供的健康数据，没有独立访问数据库的权限，不得编造用户记录。不要提供诊断、处方或调整用药的指令；遇到紧急症状应建议及时就医。'}]
                     + [item.model_dump() for item in history] + [{'role': 'user', 'content': message}],
     }
     try:

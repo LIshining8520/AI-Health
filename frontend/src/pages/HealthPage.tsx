@@ -64,7 +64,7 @@ export default function HealthPage({
     steps: date === readDate ? nativeSummary?.steps : null,
     sleep: date === readDate && nativeSummary?.sleepHours != null ? { date, hours: nativeSummary.sleepHours } : null,
   } : remoteDashboard;
-  const canRecord = date === today && !native;
+  const canRecord = date === today && !saving && !healthBusy;
   const water = dashboard?.water ?? 0;
   const history = dashboard?.weightHistory ?? [];
   const latest = history.at(-1);
@@ -84,8 +84,8 @@ export default function HealthPage({
     <>
       <header className="page-header">
         <div>
-          <h2>{date === today ? "今天" : date}</h2>
-          <p>按日期查看你的健康记录</p>
+          <span className="health-eyebrow">YOUR DAILY WELLNESS</span><h2>健康概览</h2>
+          <p>身体与心绪的信号，在这里看见。</p>
         </div>
         <span className="header-spark">
           <Heart size={23} strokeWidth={1.5} />
@@ -136,7 +136,7 @@ export default function HealthPage({
         <p className="apple-health-meta">{dashboard?.noise ? new Date(dashboard.noise.at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Shanghai" }) + "（上海时间）· 非实时测量" : "导入记录后显示测量值"}</p>
       </section>
 
-        <section className="card metric-card">
+        <section className="card metric-card water-card">
           <div className="metric-title">
             <IconBubble icon={Droplet} />
             <span>饮水</span>
@@ -204,6 +204,7 @@ export default function HealthPage({
           </div>
         </div>
         {trend.length > 0 ? <>
+        <div className="trend-summary"><div><span>最近测量</span><strong>{weight?.toFixed(1)}<small>kg</small></strong></div><span className="trend-record-count">{trend.length} 个记录日 · 近 {period === "week" ? "7" : "30"} 天</span></div>
         <div className="trend-chart">
           <div className="y-labels">
             <span>{high}</span>
@@ -213,8 +214,8 @@ export default function HealthPage({
           <svg viewBox="0 0 290 125" role="img" aria-label={`${period === "week" ? "周" : "月"}体重趋势，${trend.length} 个真实测量点`}>
             <defs>
               <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#8ac4b1" stopOpacity=".5" />
-                <stop offset="100%" stopColor="#8ac4b1" stopOpacity="0" />
+                <stop offset="0%" stopColor="#b8a4d6" stopOpacity=".5" />
+                <stop offset="100%" stopColor="#b8a4d6" stopOpacity="0" />
               </linearGradient>
             </defs>
             {[20, 60, 100].map((y) => (
@@ -231,8 +232,8 @@ export default function HealthPage({
             <polyline
               points={points}
               fill="none"
-              stroke="#064548"
-              strokeWidth="2.3"
+              stroke="#7b68a7"
+              strokeWidth="2.3" strokeLinecap="round"
               strokeLinejoin="round"
             />
             {trend.map(row => (
@@ -248,13 +249,13 @@ export default function HealthPage({
                   }
                 }}>
                 <circle cx={x(row.date)} cy={y(row.value)} r={12} fill="transparent" />
-                <circle cx={x(row.date)} cy={y(row.value)} r={selectedPointDate === row.date ? 6 : 4} fill="#064548" stroke="white" strokeWidth={1.5} />
+                <circle cx={x(row.date)} cy={y(row.value)} r={selectedPointDate === row.date ? 6 : 4} fill="#7b68a7" stroke="white" strokeWidth={1.5} />
                 <title>{row.date} · {row.value.toFixed(2)} kg · {row.source}</title>
               </g>
             ))}
             {selected && (
               <g pointerEvents="none" transform={`translate(${Math.max(58, Math.min(232, x(selected.date)))},${y(selected.value) < 45 ? y(selected.value) + 12 : y(selected.value) - 44})`}>
-                <rect x={-55} width={110} height={36} rx={6} fill="#064548" />
+                <rect x={-55} width={110} height={36} rx={6} fill="#7b68a7" />
                 <text textAnchor="middle" y={14} fill="white" fontSize={10}>{selected.date}</text>
                 <text textAnchor="middle" y={29} fill="white" fontSize={12} fontWeight={600}>{selected.value.toFixed(2)} kg</text>
               </g>

@@ -21,24 +21,27 @@ export default function HrvTrend({ history, date }: { history: { at: string; val
   const points = rows.map(row => `${x(row.at)},${y(row.value)}`).join(" ");
   return <section className="card trend-card hrv-trend-card">
     <div className="card-heading">
-      <span><Activity size={21} />HRV 趋势</span>
+      <span><Activity size={21} />HRV 趋势</span><span className="trend-unit">SDNN · ms</span>
     </div>
     {rows.length ? <>
+      <div className="trend-summary"><div><span>当日平均</span><strong>{(values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1)}<small>ms</small></strong></div><span className="trend-record-count">{rows.length} 次测量 · {date}</span></div>
       <div className="trend-chart">
         <div className="y-labels"><span>{high}</span><span>{((high + low) / 2).toFixed(1)}</span><span>{low}</span></div>
         <svg viewBox="0 0 290 125" role="img" aria-label={`HRV 当天测量趋势，${rows.length} 条记录，单位毫秒`}>
+          <defs><linearGradient id="hrvTrendFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#b8a4d6" stopOpacity=".3" /><stop offset="100%" stopColor="#b8a4d6" stopOpacity="0" /></linearGradient></defs>
+          {rows.length > 1 && <polygon points={`${x(rows[0].at)},112 ${points} ${x(rows.at(-1)!.at)},112`} fill="url(#hrvTrendFill)" />}
           {[20, 60, 100].map(value => <line key={value} x1="15" y1={value} x2="273" y2={value} className="grid-line" />)}
-          <polyline points={points} fill="none" stroke="#064548" strokeWidth="2.3" strokeLinejoin="round" />
+          <polyline points={points} fill="none" stroke="#7b68a7" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" />
           {rows.map(row => <g key={row.id} className="weight-trend-node" role="button" tabIndex={0}
             aria-label={`${timeLabel(row.at)}，HRV ${row.value.toFixed(1)} ms`} aria-pressed={selectedDate === row.id}
             style={{ cursor: "pointer" }} onClick={() => setSelectedDate(row.id)}
             onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedDate(row.id); } }}>
             <circle cx={x(row.at)} cy={y(row.value)} r={12} fill="transparent" />
-            <circle cx={x(row.at)} cy={y(row.value)} r={selectedDate === row.id ? 6 : 4} fill="#064548" stroke="white" strokeWidth={1.5} />
+            <circle cx={x(row.at)} cy={y(row.value)} r={selectedDate === row.id ? 6 : 4} fill="#7b68a7" stroke="white" strokeWidth={1.5} />
             <title>{timeLabel(row.at)} · {row.value.toFixed(1)} ms</title>
           </g>)}
           {selected && <g pointerEvents="none" transform={`translate(${Math.max(58, Math.min(232, x(selected.at)))},${y(selected.value) < 45 ? y(selected.value) + 12 : y(selected.value) - 44})`}>
-            <rect x={-55} width={110} height={36} rx={6} fill="#064548" />
+            <rect x={-55} width={110} height={36} rx={6} fill="#7b68a7" />
             <text textAnchor="middle" y={14} fill="white" fontSize={10}>{timeLabel(selected.at)}</text>
             <text textAnchor="middle" y={29} fill="white" fontSize={12} fontWeight={600}>{selected.value.toFixed(1)} ms</text>
           </g>}

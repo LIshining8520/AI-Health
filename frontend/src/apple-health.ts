@@ -21,6 +21,7 @@ export interface AppleHealthSummary {
   syncedAt: string;
 }
 interface HealthKitBridge {
+  addWeight(options: { kilograms: number }): Promise<{ saved: boolean }>;
   addWater(options: { milliliters: number }): Promise<{ saved: boolean }>;
   isAvailable(): Promise<{ available: boolean }>;
   requestReadAccess(): Promise<{ requestCompleted: boolean }>;
@@ -35,7 +36,7 @@ export async function readAppleHealth(
 ): Promise<AppleHealthSummary> {
   if (!isNativeIPhone())
     throw new Error(
-      "请在安装到 iPhone 的知康 App 中连接；Safari 和网页预览无法读取 Apple 健康。",
+      "请在安装到 iPhone 的冷酸宁 App 中连接；Safari 和网页预览无法读取 Apple 健康。",
     );
   const availability = await HealthKit.isAvailable();
   if (!availability.available) throw new Error("当前设备不支持 Apple 健康。");
@@ -51,4 +52,18 @@ export async function addAppleHealthWater(milliliters: number): Promise<void> {
   if (!Number.isFinite(milliliters) || milliliters <= 0 || milliliters > 5000) throw new Error("饮水量须在 0–5000 mL 之间");
   const result = await HealthKit.addWater({ milliliters });
   if (!result.saved) throw new Error("饮水记录未保存，请重试。");
+}
+
+export async function addAppleHealthWeight(kilograms: number): Promise<void> {
+  if (!isNativeIPhone()) throw new Error("请在 iPhone App 中保存到 Apple 健康。");
+  if (!Number.isFinite(kilograms) || kilograms < 1 || kilograms > 500) throw new Error("体重须在 1–500 kg 之间");
+  const result = await HealthKit.addWeight({ kilograms });
+  if (!result.saved) throw new Error("体重记录未保存，请重试。");
+}
+
+// HealthKit hides read-permission status; an empty result can also mean no records.
+export function hasReadableHealthData(summary: AppleHealthSummary): boolean {
+  return [summary.steps, summary.sleepHours, summary.weightKg, summary.heartRate,
+    summary.hrv, summary.waterMl, summary.noise, summary.fitness].some(value => value != null)
+    || summary.workouts.length > 0 || summary.weightHistory.length > 0 || summary.hrvHistory.length > 0;
 }
