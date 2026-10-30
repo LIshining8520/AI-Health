@@ -1,11 +1,13 @@
 import Capacitor
 import HealthKit
+import UIKit
 
 @objc(HealthKitPlugin)
 public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let identifier = "HealthKitPlugin"
     public let jsName = "HealthKit"
     public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "exportData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isAvailable", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestReadAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "addWater", returnType: CAPPluginReturnPromise),
@@ -17,6 +19,44 @@ public class HealthKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private func isReadDenied(_ error: Error) -> Bool {
         let nsError = error as NSError
         return nsError.domain == HKErrorDomain && [HKError.Code.errorAuthorizationDenied.rawValue, HKError.Code.errorNoData.rawValue].contains(nsError.code)
+    }
+
+    @objc func exportData(_ call: CAPPluginCall) {
+        guard let json = call.getString("json"), let data = json.data(using: .utf8),
+              data.count <= 10_000_000,
+              (try? JSONSerialization.jsonObject(with: data)) != nil else {
+            call.reject("导出数据无效或过大", "INVALID_EXPORT")
+            return
+        }
+        DispatchQueue.main.async {
+            guard let controller = self.bridge?.viewController else {
+                call.reject("暂时无法打开分享面板，请重试", "NO_CONTROLLER")
+                return
+            }
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            do {
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let file = directory.appendingPathComponent("冷酸宁-健康记录.json")
+                try data.write(to: file, options: [.atomic, .completeFileProtection])
+                let sheet = UIActivityViewController(activityItems: [file], applicationActivities: nil)
+                sheet.popoverPresentationController?.sourceView = controller.view
+                sheet.popoverPresentationController?.sourceRect = CGRect(x: controller.view.bounds.midX, y: controller.view.bounds.midY, width: 1, height: 1)
+                sheet.completionWithItemsHandler = { _, completed, _, error in
+                    try? FileManager.default.removeItem(at: directory)
+                    if let error = error { call.reject("导出失败：" + error.localizedDescription, "EXPORT_FAILED", error) }
+                    else { call.resolve(["completed": completed]) }
+                }
+                guard controller.presentedViewController == nil else {
+                    try? FileManager.default.removeItem(at: directory)
+                    call.reject("请关闭当前系统弹窗后重试", "PRESENTATION_BUSY")
+                    return
+                }
+                controller.present(sheet, animated: true)
+            } catch {
+                try? FileManager.default.removeItem(at: directory)
+                call.reject("无法生成导出文件：" + error.localizedDescription, "EXPORT_FAILED", error)
+            }
+        }
     }
 
     @objc func isAvailable(_ call: CAPPluginCall) {

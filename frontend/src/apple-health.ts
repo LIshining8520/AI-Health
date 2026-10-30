@@ -21,6 +21,7 @@ export interface AppleHealthSummary {
   syncedAt: string;
 }
 interface HealthKitBridge {
+  exportData(options: { json: string }): Promise<{ completed: boolean }>;
   addWeight(options: { kilograms: number }): Promise<{ saved: boolean }>;
   addWater(options: { milliliters: number }): Promise<{ saved: boolean }>;
   isAvailable(): Promise<{ available: boolean }>;
@@ -66,4 +67,9 @@ export function hasReadableHealthData(summary: AppleHealthSummary): boolean {
   return [summary.steps, summary.sleepHours, summary.weightKg, summary.heartRate,
     summary.hrv, summary.waterMl, summary.noise, summary.fitness].some(value => value != null)
     || summary.workouts.length > 0 || summary.weightHistory.length > 0 || summary.hrvHistory.length > 0;
+}
+
+export async function exportAppleHealthData(json: string): Promise<boolean> {
+  if (!isNativeIPhone()) throw new Error("请在 iPhone App 中使用系统导出。");
+  return (await HealthKit.exportData({ json })).completed;
 }

@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import type { AppleHealthSummary } from "./apple-health";
-import { hasReadableHealthData, addAppleHealthWeight, addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
+import { exportAppleHealthData, hasReadableHealthData, addAppleHealthWeight, addAppleHealthWater, isNativeIPhone, readAppleHealth } from "./apple-health";
 import { clearStoredAvatar, prepareAvatar, readStoredAvatar, storeAvatar } from "./avatar";
 import IconBubble from "./components/IconBubble";
 import ChatPage, { ChatComposer } from "./pages/ChatPage";
@@ -291,7 +291,33 @@ export default function App() {
     setAvatar("");
     setToast("头像已移除");
   }
-  function exportData() {
+  const exporting = useRef(false);
+  async function exportData() {
+    if (exporting.current) return;
+    if (isNativeIPhone()) {
+      if (!healthEnabled) {
+        setModal("health-onboarding");
+        setToast("请先连接 Apple 健康后再导出");
+        return;
+      }
+      exporting.current = true;
+      try {
+        const summary = await readAppleHealth(false, healthDate);
+        if (!hasReadableHealthData(summary)) {
+          setToast("暂无可导出的健康记录，请检查所选日期、健康数据及读取权限");
+          return;
+        }
+        setNativeSummary(summary);
+        const completed = await exportAppleHealthData(JSON.stringify({
+          profile: { name }, exportedAt: new Date().toISOString(), timeZone: "Asia/Shanghai",
+          source: "Apple 健康", scope: "所选日期健康摘要及接口返回的体重历史，不含完整健康数据库、头像或聊天记录", ...summary,
+        }, null, 2));
+        if (completed) setToast("导出操作已完成");
+      } catch (error) {
+        setToast(error instanceof Error ? error.message : "导出失败，请重试");
+      } finally { exporting.current = false; }
+      return;
+    }
     if (!dashboard) {
       setToast("请先连接后端后再导出");
       return;
@@ -304,8 +330,10 @@ export default function App() {
     const link = document.createElement("a");
     link.href = url;
     link.download = "冷酸宁-健康记录.json";
+    document.body.appendChild(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     setToast("健康记录已导出");
   }
   const weight = (isNativeIPhone() ? nativeSummary?.weightKg : dashboard?.weight) ?? 62;
@@ -388,7 +416,7 @@ export default function App() {
                   setModal("profile");
                 }}
                 onOpenModal={setModal}
-                onExportData={exportData}
+                onExportData={() => void exportData()}
               />
             )}
           </div>
